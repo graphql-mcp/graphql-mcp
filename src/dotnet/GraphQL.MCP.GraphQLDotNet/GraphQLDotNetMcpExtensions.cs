@@ -1,20 +1,28 @@
-// GraphQL.MCP.GraphQLDotNet — Placeholder for v0.2
-//
-// This adapter will implement IGraphQLSchemaSource and IGraphQLExecutor
-// for the graphql-dotnet library, following the same patterns as the
-// Hot Chocolate adapter.
-//
-// See: src/dotnet/GraphQL.MCP.HotChocolate/ for reference implementation.
+using GraphQL.MCP.Abstractions;
+using GraphQL.MCP.AspNetCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace GraphQL.MCP.GraphQLDotNet;
 
 /// <summary>
-/// Placeholder — graphql-dotnet adapter coming in v0.2.
+/// Extension methods for registering graphql-dotnet MCP services.
 /// </summary>
 public static class GraphQLDotNetMcpExtensions
 {
-    // TODO: Implement in v0.2
-    // - GraphQLDotNetSchemaSource : IGraphQLSchemaSource
-    // - GraphQLDotNetExecutor : IGraphQLExecutor
-    // - AddGraphQLDotNetMcp() extension method
+    /// <summary>
+    /// Registers graphql-dotnet MCP adapter services.
+    /// Requires <see cref="GraphQL.Types.ISchema"/> and <see cref="GraphQL.IDocumentExecuter"/>
+    /// to be registered in the DI container (typically via <c>services.AddGraphQL()</c>).
+    /// </summary>
+    public static IServiceCollection AddGraphQLDotNetMcp(
+        this IServiceCollection services,
+        Action<McpOptions>? configure = null)
+    {
+        services.TryAddSingleton<IGraphQLSchemaSource, GraphQLDotNetSchemaSource>();
+        services.TryAddSingleton<IGraphQLExecutor, GraphQLDotNetExecutor>();
+        services.AddGraphQLMcp(configure);
+
+        return services;
+    }
 }
