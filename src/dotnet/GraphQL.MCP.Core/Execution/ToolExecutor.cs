@@ -158,8 +158,8 @@ public sealed class ToolExecutor
     private static object? DeserializeJsonElement(JsonElement element) => element.ValueKind switch
     {
         JsonValueKind.String => element.GetString(),
-        JsonValueKind.Number => element.TryGetInt32(out var i) ? i
-            : element.TryGetInt64(out var l) ? l
+        JsonValueKind.Number => element.TryGetInt32(out var i) ? (object)i
+            : element.TryGetInt64(out var l) ? (object)l
             : element.GetDouble(),
         JsonValueKind.True => true,
         JsonValueKind.False => false,
