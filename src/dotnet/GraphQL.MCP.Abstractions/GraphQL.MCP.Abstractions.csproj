@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>GraphQL.MCP.Abstractions</PackageId>
+    <Description>Core abstractions and contracts for graphql-mcp — the GraphQL to MCP bridge.</Description>
+    <IsPackable>true</IsPackable>
+  </PropertyGroup>
+
+</Project>

@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>GraphQL.MCP.HotChocolate</PackageId>
+    <Description>Hot Chocolate adapter for graphql-mcp — expose your Hot Chocolate GraphQL API as MCP tools.</Description>
+    <IsPackable>true</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\GraphQL.MCP.AspNetCore\GraphQL.MCP.AspNetCore.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="HotChocolate.AspNetCore" Version="14.*" />
+  </ItemGroup>
+
+</Project>

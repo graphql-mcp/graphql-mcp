@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>GraphQL.MCP.GraphQLDotNet</PackageId>
+    <Description>graphql-dotnet adapter for graphql-mcp — expose your graphql-dotnet API as MCP tools.</Description>
+    <IsPackable>true</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\GraphQL.MCP.AspNetCore\GraphQL.MCP.AspNetCore.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="GraphQL.Server.Transports.AspNetCore" Version="8.*" />
+  </ItemGroup>
+
+</Project>
