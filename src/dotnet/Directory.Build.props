@@ -6,6 +6,9 @@
     <LangVersion>latest</LangVersion>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
 
+    <!-- Version: overridden by CI via -p:Version=x.y.z -->
+    <Version>0.0.1-local</Version>
+
     <!-- NuGet package defaults -->
     <Authors>graphql-mcp contributors</Authors>
     <Company>graphql-mcp</Company>
@@ -17,4 +20,9 @@
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <Copyright>Copyright (c) 2026 graphql-mcp contributors</Copyright>
   </PropertyGroup>
+
+  <!-- Include root README.md in NuGet packages -->
+  <ItemGroup Condition="'$(IsPackable)' != 'false'">
+    <None Include="$(MSBuildThisFileDirectory)..\..\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
 </Project>
