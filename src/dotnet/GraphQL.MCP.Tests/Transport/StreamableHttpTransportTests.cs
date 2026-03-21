@@ -157,7 +157,7 @@ public class StreamableHttpTransportTests
         var serverInfo = json.RootElement.GetProperty("result").GetProperty("serverInfo");
 
         serverInfo.GetProperty("name").GetString().Should().Be("graphql-mcp");
-        serverInfo.GetProperty("version").GetString().Should().Be("0.1.0");
+        serverInfo.GetProperty("version").GetString().Should().NotBeNullOrEmpty();
     }
 
     [Fact]

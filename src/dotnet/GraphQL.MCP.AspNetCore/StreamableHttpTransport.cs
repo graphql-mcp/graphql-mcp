@@ -132,7 +132,7 @@ public sealed class StreamableHttpTransport
             serverInfo = new
             {
                 name = "graphql-mcp",
-                version = "0.1.0"
+                version = typeof(StreamableHttpTransport).Assembly.GetName().Version?.ToString(3) ?? "0.1.0"
             }
         };
 
