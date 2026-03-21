@@ -2,6 +2,7 @@ using System.Text.Json;
 using GraphQL.MCP.Abstractions;
 using GraphQL.MCP.Abstractions.Canonical;
 using GraphQL.MCP.Abstractions.Policy;
+using GraphQL.MCP.Core.Observability;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -32,6 +33,9 @@ public sealed class ToolPublisher
     /// </summary>
     public IReadOnlyList<McpToolDescriptor> Publish(IReadOnlyList<CanonicalOperation> operations)
     {
+        using var activity = McpActivitySource.Source.StartActivity("mcp.publish");
+        activity?.SetTag("mcp.publish.input_count", operations.Count);
+
         var tools = new List<McpToolDescriptor>();
 
         foreach (var op in operations)
@@ -60,6 +64,8 @@ public sealed class ToolPublisher
                 toolName, op.GraphQLFieldName, op.OperationType);
         }
 
+        activity?.SetTag("mcp.publish.output_count", tools.Count);
+        McpActivitySource.PublishedToolCount.Add(tools.Count);
         _logger.LogInformation("Published {Count} MCP tools", tools.Count);
         return tools;
     }
@@ -88,7 +94,7 @@ public sealed class ToolPublisher
         foreach (var arg in op.Arguments)
         {
             writer.WritePropertyName(arg.Name);
-            WriteTypeSchema(writer, arg.Type);
+            WriteTypeSchema(writer, arg.Type, arg.Description, arg.DefaultValue);
 
             if (arg.IsRequired)
             {
@@ -117,7 +123,11 @@ public sealed class ToolPublisher
         return JsonDocument.Parse(stream);
     }
 
-    private void WriteTypeSchema(Utf8JsonWriter writer, CanonicalType type)
+    private void WriteTypeSchema(
+        Utf8JsonWriter writer,
+        CanonicalType type,
+        string? description = null,
+        object? defaultValue = null)
     {
         writer.WriteStartObject();
 
@@ -126,6 +136,12 @@ public sealed class ToolPublisher
         if (inner.Kind == TypeKind.NonNull && inner.OfType is not null)
         {
             inner = inner.OfType;
+        }
+
+        // Write description if available
+        if (_options.IncludeDescriptions && !string.IsNullOrWhiteSpace(description))
+        {
+            writer.WriteString("description", description);
         }
 
         switch (inner.Kind)
@@ -164,12 +180,30 @@ public sealed class ToolPublisher
                 {
                     writer.WritePropertyName("properties");
                     writer.WriteStartObject();
+                    var requiredFields = new List<string>();
                     foreach (var field in inner.Fields)
                     {
                         writer.WritePropertyName(field.Name);
-                        WriteTypeSchema(writer, field.Type);
+                        WriteTypeSchema(writer, field.Type, field.Description);
+
+                        // Detect NonNull fields in input objects as required
+                        if (field.Type.Kind == TypeKind.NonNull || field.Type.IsNonNull)
+                        {
+                            requiredFields.Add(field.Name);
+                        }
                     }
                     writer.WriteEndObject();
+
+                    if (requiredFields.Count > 0)
+                    {
+                        writer.WritePropertyName("required");
+                        writer.WriteStartArray();
+                        foreach (var name in requiredFields)
+                        {
+                            writer.WriteStringValue(name);
+                        }
+                        writer.WriteEndArray();
+                    }
                 }
                 break;
 
@@ -178,7 +212,42 @@ public sealed class ToolPublisher
                 break;
         }
 
+        // Write default value if available
+        if (defaultValue is not null)
+        {
+            WriteDefaultValue(writer, defaultValue);
+        }
+
         writer.WriteEndObject();
+    }
+
+    private static void WriteDefaultValue(Utf8JsonWriter writer, object value)
+    {
+        writer.WritePropertyName("default");
+        switch (value)
+        {
+            case string s:
+                writer.WriteStringValue(s);
+                break;
+            case int i:
+                writer.WriteNumberValue(i);
+                break;
+            case long l:
+                writer.WriteNumberValue(l);
+                break;
+            case double d:
+                writer.WriteNumberValue(d);
+                break;
+            case float f:
+                writer.WriteNumberValue(f);
+                break;
+            case bool b:
+                writer.WriteBooleanValue(b);
+                break;
+            default:
+                writer.WriteStringValue(value.ToString());
+                break;
+        }
     }
 
     private static string MapScalarToJsonType(string graphqlType) => graphqlType switch

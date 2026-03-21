@@ -2,14 +2,12 @@ using GraphQL.MCP.Abstractions;
 using GraphQL.MCP.Abstractions.Policy;
 using GraphQL.MCP.Core.Canonical;
 using GraphQL.MCP.Core.Execution;
-using GraphQL.MCP.Core.Observability;
 using GraphQL.MCP.Core.Policy;
 using GraphQL.MCP.Core.Publishing;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace GraphQL.MCP.AspNetCore;
@@ -44,27 +42,9 @@ public static class McpServiceCollectionExtensions
         services.TryAddSingleton<ToolPublisher>();
         services.TryAddSingleton<ToolExecutor>();
 
-        // Build and register the tool list + transport on first resolution
-        services.TryAddSingleton<IReadOnlyList<McpToolDescriptor>>(sp =>
-        {
-            var canonicalizer = sp.GetRequiredService<SchemaCanonicalizer>();
-            var policy = sp.GetRequiredService<IMcpPolicy>() as PolicyEngine
-                ?? throw new InvalidOperationException("PolicyEngine not registered");
-            var publisher = sp.GetRequiredService<ToolPublisher>();
-            var executor = sp.GetRequiredService<ToolExecutor>();
-            var logger = sp.GetRequiredService<ILogger<StreamableHttpTransport>>();
-
-            // Synchronous bootstrap — acceptable at startup
-            var result = canonicalizer.CanonicalizeAsync().GetAwaiter().GetResult();
-            var allOps = result.Queries.Concat(result.Mutations).ToList();
-            var filteredOps = policy.Apply(allOps);
-            var tools = publisher.Publish(filteredOps);
-
-            executor.RegisterTools(tools);
-            McpActivitySource.PublishedToolCount.Add(tools.Count);
-
-            return tools;
-        });
+        // Tool registry — populated asynchronously at startup
+        services.TryAddSingleton<McpToolRegistry>();
+        services.AddHostedService<McpToolInitializationService>();
 
         services.TryAddSingleton<StreamableHttpTransport>();
 

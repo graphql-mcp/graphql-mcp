@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json;
 using GraphQL.MCP.Abstractions;
 using GraphQL.MCP.Core.Observability;
@@ -46,10 +47,14 @@ public sealed class ToolExecutor
     {
         using var activity = McpActivitySource.Source.StartActivity("mcp.tool.execute");
         activity?.SetTag("mcp.tool.name", toolName);
+        var stopwatch = Stopwatch.StartNew();
+
+        McpActivitySource.ToolInvocations.Add(1, new KeyValuePair<string, object?>("tool.name", toolName));
 
         if (!_toolRegistry.TryGetValue(toolName, out var descriptor))
         {
             _logger.LogWarning("Tool '{ToolName}' not found", toolName);
+            McpActivitySource.ToolErrors.Add(1, new KeyValuePair<string, object?>("tool.name", toolName));
             return ToolExecutionResult.Error($"Tool '{toolName}' not found.");
         }
 
@@ -84,6 +89,7 @@ public sealed class ToolExecutor
                     "GraphQL execution errors for tool '{ToolName}': {Errors}",
                     toolName, string.Join("; ", errorMessages));
 
+                McpActivitySource.ToolErrors.Add(1, new KeyValuePair<string, object?>("tool.name", toolName));
                 return ToolExecutionResult.Error(
                     $"GraphQL execution failed: {string.Join("; ", errorMessages)}");
             }
@@ -98,8 +104,16 @@ public sealed class ToolExecutor
             _logger.LogError(ex, "Unhandled error executing tool '{ToolName}'", toolName);
             activity?.SetTag("mcp.tool.success", false);
             activity?.SetTag("error", true);
+            McpActivitySource.ToolErrors.Add(1, new KeyValuePair<string, object?>("tool.name", toolName));
 
             return ToolExecutionResult.Error("An internal error occurred while executing the tool.");
+        }
+        finally
+        {
+            stopwatch.Stop();
+            McpActivitySource.ToolDuration.Record(
+                stopwatch.Elapsed.TotalMilliseconds,
+                new KeyValuePair<string, object?>("tool.name", toolName));
         }
     }
 

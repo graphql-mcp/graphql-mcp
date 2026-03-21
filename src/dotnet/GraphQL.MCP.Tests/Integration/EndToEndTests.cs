@@ -5,16 +5,11 @@ using FluentAssertions;
 using GraphQL.MCP.Abstractions;
 using GraphQL.MCP.Abstractions.Canonical;
 using GraphQL.MCP.AspNetCore;
-using GraphQL.MCP.Core.Execution;
-using GraphQL.MCP.Core.Policy;
-using GraphQL.MCP.Core.Publishing;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.Options;
 using NSubstitute;
 using Xunit;
 
@@ -31,6 +26,9 @@ public class EndToEndTests
         var response = await SendMcpRequest(client, "initialize", null);
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        // Session ID should be returned
+        response.Headers.Contains("Mcp-Session-Id").Should().BeTrue();
 
         var json = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
         var result = json.RootElement.GetProperty("result");
@@ -107,6 +105,25 @@ public class EndToEndTests
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
+    [Fact]
+    public async Task Unknown_session_id_should_return_404()
+    {
+        using var host = await CreateTestHost();
+        using var client = host.GetTestClient();
+
+        // Send tools/list with a fabricated session ID (not from initialize)
+        var body = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\"}";
+        var request = new HttpRequestMessage(HttpMethod.Post, "/mcp")
+        {
+            Content = new StringContent(body, Encoding.UTF8, "application/json")
+        };
+        request.Headers.Add("Mcp-Session-Id", "nonexistent-session-id");
+
+        var response = await client.SendAsync(request);
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
     private static async Task<IHost> CreateTestHost()
     {
         // Create mock schema source and executor
@@ -155,8 +172,7 @@ public class EndToEndTests
             })
             .StartAsync();
 
-        // Force the singleton resolution so tools are registered
-        host.Services.GetRequiredService<IReadOnlyList<McpToolDescriptor>>();
+        // Tools are initialized by McpToolInitializationService during StartAsync
         return host;
     }
 
