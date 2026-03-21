@@ -13,6 +13,13 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Extract version from tag
+        id: version
+        run: |
+          TAG="${GITHUB_REF#refs/tags/dotnet-v}"
+          echo "VERSION=$TAG" >> $GITHUB_OUTPUT
+          echo "Extracted version: $TAG"
+
       - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '10.0.x'
@@ -21,13 +28,13 @@ jobs:
         run: dotnet restore src/dotnet/GraphQL.MCP.sln
 
       - name: Build
-        run: dotnet build src/dotnet/GraphQL.MCP.sln -c Release --no-restore
+        run: dotnet build src/dotnet/GraphQL.MCP.sln -c Release --no-restore -p:Version=${{ steps.version.outputs.VERSION }}
 
       - name: Test
         run: dotnet test src/dotnet/GraphQL.MCP.sln -c Release --no-build
 
       - name: Pack
-        run: dotnet pack src/dotnet/GraphQL.MCP.sln -c Release --no-build -o ./nupkgs
+        run: dotnet pack src/dotnet/GraphQL.MCP.sln -c Release --no-build -o ./nupkgs -p:Version=${{ steps.version.outputs.VERSION }}
 
       - name: Push to NuGet
         run: |
