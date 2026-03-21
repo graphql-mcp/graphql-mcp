@@ -1,5 +1,6 @@
 using GraphQL.MCP.Abstractions;
 using GraphQL.MCP.Abstractions.Canonical;
+using GraphQL.MCP.Core.Observability;
 using Microsoft.Extensions.Logging;
 
 namespace GraphQL.MCP.Core.Canonical;
@@ -26,6 +27,7 @@ public sealed class SchemaCanonicalizer
     /// </summary>
     public async Task<CanonicalizationResult> CanonicalizeAsync(CancellationToken cancellationToken = default)
     {
+        using var activity = McpActivitySource.Source.StartActivity("mcp.canonicalize");
         _logger.LogInformation("Starting schema canonicalization");
 
         var operations = await _schemaSource.GetOperationsAsync(cancellationToken);
@@ -57,6 +59,10 @@ public sealed class SchemaCanonicalizer
         _logger.LogInformation(
             "Canonicalization complete: {QueryCount} queries, {MutationCount} mutations discovered",
             queries.Count, mutations.Count);
+
+        activity?.SetTag("mcp.canonicalize.queries", queries.Count);
+        activity?.SetTag("mcp.canonicalize.mutations", mutations.Count);
+        activity?.SetTag("mcp.canonicalize.types", types.Count);
 
         return new CanonicalizationResult
         {

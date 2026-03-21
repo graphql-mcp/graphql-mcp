@@ -37,8 +37,15 @@ public sealed class McpOptions
 
     /// <summary>
     /// GraphQL field names to exclude from tool generation.
+    /// Supports glob patterns: "*password*", "internal_*", "*.secret".
     /// </summary>
     public HashSet<string> ExcludedFields { get; set; } = [];
+
+    /// <summary>
+    /// GraphQL field names to include (allowlist). When non-empty, only fields matching
+    /// this list are considered. Supports glob patterns.
+    /// </summary>
+    public HashSet<string> IncludedFields { get; set; } = [];
 
     /// <summary>
     /// GraphQL type names to exclude. Operations returning/accepting these types are skipped.

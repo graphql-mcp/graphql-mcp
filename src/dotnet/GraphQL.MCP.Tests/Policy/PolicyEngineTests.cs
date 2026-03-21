@@ -178,4 +178,157 @@ public class PolicyEngineTests
 
         names.Should().BeInAscendingOrder();
     }
+
+    // --- Glob pattern tests ---
+
+    [Fact]
+    public void Should_exclude_fields_matching_glob_pattern_with_wildcard()
+    {
+        var sut = CreateSut(new McpOptions { ExcludedFields = ["*password*", "*Password*"] });
+
+        sut.ShouldIncludeOperation(CreateOperation("userPassword")).Should().BeFalse();
+        sut.ShouldIncludeOperation(CreateOperation("passwordReset")).Should().BeFalse();
+        sut.ShouldIncludeOperation(CreateOperation("password")).Should().BeFalse();
+        sut.ShouldIncludeOperation(CreateOperation("users")).Should().BeTrue();
+    }
+
+    [Fact]
+    public void Should_exclude_fields_matching_prefix_glob()
+    {
+        var sut = CreateSut(new McpOptions { ExcludedFields = ["internal_*"] });
+
+        sut.ShouldIncludeOperation(CreateOperation("internal_debug")).Should().BeFalse();
+        sut.ShouldIncludeOperation(CreateOperation("internal_metrics")).Should().BeFalse();
+        sut.ShouldIncludeOperation(CreateOperation("users")).Should().BeTrue();
+    }
+
+    [Fact]
+    public void Should_exclude_fields_matching_suffix_glob()
+    {
+        var sut = CreateSut(new McpOptions { ExcludedFields = ["*_secret"] });
+
+        sut.ShouldIncludeOperation(CreateOperation("api_secret")).Should().BeFalse();
+        sut.ShouldIncludeOperation(CreateOperation("users")).Should().BeTrue();
+    }
+
+    [Fact]
+    public void Should_exclude_fields_matching_question_mark_glob()
+    {
+        var sut = CreateSut(new McpOptions { ExcludedFields = ["field?"] });
+
+        sut.ShouldIncludeOperation(CreateOperation("fieldA")).Should().BeFalse();
+        sut.ShouldIncludeOperation(CreateOperation("field1")).Should().BeFalse();
+        sut.ShouldIncludeOperation(CreateOperation("fields")).Should().BeFalse();
+        sut.ShouldIncludeOperation(CreateOperation("field")).Should().BeTrue("'field' is 5 chars, pattern 'field?' requires exactly 6");
+        sut.ShouldIncludeOperation(CreateOperation("field12")).Should().BeTrue("two chars should not match single '?'");
+    }
+
+    // --- Allowlist tests ---
+
+    [Fact]
+    public void Should_only_include_fields_in_IncludedFields()
+    {
+        var sut = CreateSut(new McpOptions { IncludedFields = ["users", "orders"] });
+
+        sut.ShouldIncludeOperation(CreateOperation("users")).Should().BeTrue();
+        sut.ShouldIncludeOperation(CreateOperation("orders")).Should().BeTrue();
+        sut.ShouldIncludeOperation(CreateOperation("products")).Should().BeFalse();
+    }
+
+    [Fact]
+    public void Should_support_glob_patterns_in_IncludedFields()
+    {
+        var sut = CreateSut(new McpOptions { IncludedFields = ["get*", "list*"] });
+
+        sut.ShouldIncludeOperation(CreateOperation("getUsers")).Should().BeTrue();
+        sut.ShouldIncludeOperation(CreateOperation("listOrders")).Should().BeTrue();
+        sut.ShouldIncludeOperation(CreateOperation("createUser")).Should().BeFalse();
+    }
+
+    // --- Return type unwrapping tests ---
+
+    [Fact]
+    public void Should_exclude_wrapped_NonNull_return_type()
+    {
+        var sut = CreateSut(new McpOptions { ExcludedTypes = ["AuditLog"] });
+        var op = new CanonicalOperation
+        {
+            Name = "auditLogs",
+            GraphQLFieldName = "auditLogs",
+            OperationType = OperationType.Query,
+            ReturnType = new CanonicalType
+            {
+                Name = "AuditLog",
+                Kind = TypeKind.NonNull,
+                IsNonNull = true,
+                OfType = new CanonicalType { Name = "AuditLog", Kind = TypeKind.Object }
+            }
+        };
+
+        sut.ShouldIncludeOperation(op).Should().BeFalse();
+    }
+
+    [Fact]
+    public void Should_exclude_wrapped_List_return_type()
+    {
+        var sut = CreateSut(new McpOptions { ExcludedTypes = ["AuditLog"] });
+        var op = new CanonicalOperation
+        {
+            Name = "auditLogs",
+            GraphQLFieldName = "auditLogs",
+            OperationType = OperationType.Query,
+            ReturnType = new CanonicalType
+            {
+                Name = "List",
+                Kind = TypeKind.List,
+                IsList = true,
+                OfType = new CanonicalType { Name = "AuditLog", Kind = TypeKind.Object }
+            }
+        };
+
+        sut.ShouldIncludeOperation(op).Should().BeFalse();
+    }
+
+    // --- Long name tests ---
+
+    [Fact]
+    public void Should_truncate_tool_names_exceeding_64_chars()
+    {
+        var sut = CreateSut(new McpOptions { NamingPolicy = ToolNamingPolicy.Raw });
+        var longName = new string('a', 70);
+        var op = CreateOperation(longName);
+
+        var name = sut.TransformToolName(op);
+
+        name.Length.Should().BeLessOrEqualTo(64);
+    }
+
+    [Fact]
+    public void Should_use_deterministic_suffix_for_truncated_tool_names()
+    {
+        var longName = new string('a', 70);
+
+        var first = CreateSut(new McpOptions { NamingPolicy = ToolNamingPolicy.Raw })
+            .TransformToolName(CreateOperation(longName));
+        var second = CreateSut(new McpOptions { NamingPolicy = ToolNamingPolicy.Raw })
+            .TransformToolName(CreateOperation(longName));
+
+        first.Should().Be(second);
+        first.Should().MatchRegex("^a{55}_[a-f0-9]{8}$");
+    }
+
+    // --- MaxToolCount boundary ---
+
+    [Fact]
+    public void Apply_should_return_all_when_exactly_at_MaxToolCount()
+    {
+        var sut = CreateSut(new McpOptions { MaxToolCount = 3 });
+        var ops = Enumerable.Range(1, 3)
+            .Select(i => CreateOperation($"field{i}"))
+            .ToList();
+
+        var result = sut.Apply(ops);
+
+        result.Should().HaveCount(3);
+    }
 }

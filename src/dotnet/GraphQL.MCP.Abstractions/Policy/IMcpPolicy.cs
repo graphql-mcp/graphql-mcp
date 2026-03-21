@@ -27,4 +27,10 @@ public interface IMcpPolicy
     /// Returns the maximum number of tools to publish.
     /// </summary>
     int GetMaxToolCount();
+
+    /// <summary>
+    /// Filters and transforms a list of operations according to policy.
+    /// Returns only the operations that pass all policy checks, up to MaxToolCount.
+    /// </summary>
+    IReadOnlyList<CanonicalOperation> Apply(IEnumerable<CanonicalOperation> operations);
 }

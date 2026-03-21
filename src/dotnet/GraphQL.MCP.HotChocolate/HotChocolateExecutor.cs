@@ -45,6 +45,15 @@ public sealed class HotChocolateExecutor : IGraphQLExecutor
             queryRequestBuilder.SetOperationName(request.OperationName);
         }
 
+        // Forward auth/custom headers as global state so middleware/resolvers can access them
+        if (request.Headers is { Count: > 0 })
+        {
+            foreach (var header in request.Headers)
+            {
+                queryRequestBuilder.SetGlobalState($"Header:{header.Key}", header.Value);
+            }
+        }
+
         var queryRequest = queryRequestBuilder.Build();
 
         _logger.LogDebug("Executing Hot Chocolate query: {Query}", request.Query);

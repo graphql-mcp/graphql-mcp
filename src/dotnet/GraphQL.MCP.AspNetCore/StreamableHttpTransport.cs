@@ -1,7 +1,7 @@
+using System.Collections.Concurrent;
 using System.Text.Json;
 using GraphQL.MCP.Abstractions;
 using GraphQL.MCP.Core.Execution;
-using GraphQL.MCP.Core.Observability;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -16,18 +16,19 @@ namespace GraphQL.MCP.AspNetCore;
 public sealed class StreamableHttpTransport
 {
     private readonly ToolExecutor _toolExecutor;
-    private readonly IReadOnlyList<McpToolDescriptor> _tools;
+    private readonly McpToolRegistry _toolRegistry;
     private readonly McpOptions _options;
     private readonly ILogger<StreamableHttpTransport> _logger;
+    private readonly ConcurrentDictionary<string, DateTimeOffset> _sessions = new();
 
     public StreamableHttpTransport(
         ToolExecutor toolExecutor,
-        IReadOnlyList<McpToolDescriptor> tools,
+        McpToolRegistry toolRegistry,
         IOptions<McpOptions> options,
         ILogger<StreamableHttpTransport> logger)
     {
         _toolExecutor = toolExecutor;
-        _tools = tools;
+        _toolRegistry = toolRegistry;
         _options = options.Value;
         _logger = logger;
     }
@@ -69,6 +70,26 @@ public sealed class StreamableHttpTransport
             var method = methodElement.GetString();
             var id = GetId(doc.RootElement);
 
+            if (RequiresSession(method))
+            {
+                if (!context.Request.Headers.TryGetValue("Mcp-Session-Id", out var sessionHeader) ||
+                    string.IsNullOrWhiteSpace(sessionHeader))
+                {
+                    context.Response.StatusCode = StatusCodes.Status400BadRequest;
+                    await WriteJsonRpcError(context, id, -32600, "Missing Mcp-Session-Id header");
+                    return;
+                }
+
+                var sessionId = sessionHeader.ToString();
+                if (!_sessions.ContainsKey(sessionId))
+                {
+                    _logger.LogWarning("Unknown session ID: {SessionId}", sessionId);
+                    context.Response.StatusCode = StatusCodes.Status404NotFound;
+                    await WriteJsonRpcError(context, id, -32600, "Unknown session");
+                    return;
+                }
+            }
+
             _logger.LogDebug("MCP request: method={Method}, id={Id}", method, id);
 
             switch (method)
@@ -94,6 +115,13 @@ public sealed class StreamableHttpTransport
 
     private async Task HandleInitialize(HttpContext context, object? id)
     {
+        // Create session
+        var sessionId = Guid.NewGuid().ToString("N");
+        _sessions.TryAdd(sessionId, DateTimeOffset.UtcNow);
+        context.Response.Headers["Mcp-Session-Id"] = sessionId;
+
+        _logger.LogInformation("MCP session initialized: {SessionId}", sessionId);
+
         var result = new
         {
             protocolVersion = "2025-06-18",
@@ -113,7 +141,7 @@ public sealed class StreamableHttpTransport
 
     private async Task HandleToolsList(HttpContext context, object? id)
     {
-        var tools = _tools.Select(t => new
+        var tools = _toolRegistry.Tools.Select(t => new
         {
             name = t.Name,
             description = t.Description,
@@ -142,8 +170,6 @@ public sealed class StreamableHttpTransport
         var toolName = nameElement.GetString()!;
         JsonElement? arguments = paramsElement.TryGetProperty("arguments", out var args) ? args : null;
 
-        McpActivitySource.ToolInvocations.Add(1, new KeyValuePair<string, object?>("tool", toolName));
-
         // Extract auth headers for passthrough
         Dictionary<string, string>? headers = null;
         if (_options.Authorization.Mode == McpAuthMode.Passthrough &&
@@ -155,13 +181,8 @@ public sealed class StreamableHttpTransport
             };
         }
 
-        var sw = System.Diagnostics.Stopwatch.StartNew();
         var executionResult = await _toolExecutor.ExecuteAsync(
             toolName, arguments, headers, context.RequestAborted);
-        sw.Stop();
-
-        McpActivitySource.ToolDuration.Record(sw.Elapsed.TotalMilliseconds,
-            new KeyValuePair<string, object?>("tool", toolName));
 
         if (executionResult.IsSuccess)
         {
@@ -176,8 +197,6 @@ public sealed class StreamableHttpTransport
         }
         else
         {
-            McpActivitySource.ToolErrors.Add(1, new KeyValuePair<string, object?>("tool", toolName));
-
             var result = new
             {
                 content = new[]
@@ -203,6 +222,9 @@ public sealed class StreamableHttpTransport
         }
         return null;
     }
+
+    private static bool RequiresSession(string? method) =>
+        method is "tools/list" or "tools/call";
 
     private static async Task WriteJsonRpcResult(HttpContext context, object? id, string result)
     {
