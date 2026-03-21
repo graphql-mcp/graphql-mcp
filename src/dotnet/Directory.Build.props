@@ -23,6 +23,6 @@
 
   <!-- Include root README.md in NuGet packages -->
   <ItemGroup Condition="'$(IsPackable)' != 'false'">
-    <None Include="$(MSBuildThisFileDirectory)..\..\README.md" Pack="true" PackagePath="\" />
+    <None Include="$(MSBuildThisFileDirectory)..\..\README.md" Pack="true" PackagePath="" Link="README.md" />
   </ItemGroup>
 </Project>
