@@ -70,19 +70,23 @@ public sealed class StreamableHttpTransport
             var method = methodElement.GetString();
             var id = GetId(doc.RootElement);
 
-            // Validate session for non-initialize requests
-            if (method != "initialize")
+            if (RequiresSession(method))
             {
-                if (context.Request.Headers.TryGetValue("Mcp-Session-Id", out var sessionHeader))
+                if (!context.Request.Headers.TryGetValue("Mcp-Session-Id", out var sessionHeader) ||
+                    string.IsNullOrWhiteSpace(sessionHeader))
                 {
-                    var sessionId = sessionHeader.ToString();
-                    if (!_sessions.ContainsKey(sessionId))
-                    {
-                        _logger.LogWarning("Unknown session ID: {SessionId}", sessionId);
-                        context.Response.StatusCode = StatusCodes.Status404NotFound;
-                        await WriteJsonRpcError(context, id, -32600, "Unknown session");
-                        return;
-                    }
+                    context.Response.StatusCode = StatusCodes.Status400BadRequest;
+                    await WriteJsonRpcError(context, id, -32600, "Missing Mcp-Session-Id header");
+                    return;
+                }
+
+                var sessionId = sessionHeader.ToString();
+                if (!_sessions.ContainsKey(sessionId))
+                {
+                    _logger.LogWarning("Unknown session ID: {SessionId}", sessionId);
+                    context.Response.StatusCode = StatusCodes.Status404NotFound;
+                    await WriteJsonRpcError(context, id, -32600, "Unknown session");
+                    return;
                 }
             }
 
@@ -218,6 +222,9 @@ public sealed class StreamableHttpTransport
         }
         return null;
     }
+
+    private static bool RequiresSession(string? method) =>
+        method is "tools/list" or "tools/call";
 
     private static async Task WriteJsonRpcResult(HttpContext context, object? id, string result)
     {

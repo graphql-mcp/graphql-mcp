@@ -158,4 +158,19 @@ public class ToolExecutorTests
         result.IsSuccess.Should().BeFalse();
         result.ErrorMessage.Should().Contain("internal error");
     }
+
+    [Fact]
+    public void RegisterTools_should_throw_for_duplicate_tool_names()
+    {
+        var sut = CreateSut();
+
+        var act = () => sut.RegisterTools(
+        [
+            CreateTool("duplicate", "query { first }"),
+            CreateTool("duplicate", "query { second }")
+        ]);
+
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*Duplicate MCP tool name*");
+    }
 }

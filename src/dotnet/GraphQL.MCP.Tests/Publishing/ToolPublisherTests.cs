@@ -560,4 +560,27 @@ public class ToolPublisherTests
 
         prop.GetProperty("type").GetString().Should().Be("string");
     }
+
+    [Fact]
+    public void Should_throw_when_multiple_operations_share_a_tool_name()
+    {
+        var sut = CreateSut(new McpOptions { AllowMutations = true });
+        var ops = new List<CanonicalOperation>
+        {
+            CreateQueryOp("users"),
+            new()
+            {
+                Name = "get_users",
+                GraphQLFieldName = "get_users",
+                Description = "Mutation that collides with query naming",
+                OperationType = OperationType.Mutation,
+                ReturnType = new CanonicalType { Name = "String", Kind = TypeKind.Scalar }
+            }
+        };
+
+        var act = () => sut.Publish(ops);
+
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*same MCP tool name 'get_users'*");
+    }
 }

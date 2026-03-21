@@ -59,17 +59,16 @@ public sealed class HotChocolateSchemaSource : IGraphQLSchemaSource
     public Task<IReadOnlyDictionary<string, CanonicalType>> GetTypesAsync(CancellationToken cancellationToken = default)
     {
         var types = new Dictionary<string, CanonicalType>();
-        var visited = new HashSet<string>();
 
         foreach (var namedType in _schema.Types)
         {
             if (namedType.Name.StartsWith("__", StringComparison.Ordinal))
                 continue;
 
-            if (!visited.Add(namedType.Name))
+            if (types.ContainsKey(namedType.Name))
                 continue;
 
-            types[namedType.Name] = MapNamedType(namedType, visited);
+            types[namedType.Name] = MapNamedType(namedType, new HashSet<string>());
         }
 
         return Task.FromResult<IReadOnlyDictionary<string, CanonicalType>>(types);
@@ -77,15 +76,14 @@ public sealed class HotChocolateSchemaSource : IGraphQLSchemaSource
 
     private CanonicalOperation MapFieldToOperation(IOutputField field, OperationType opType)
     {
-        var visited = new HashSet<string>();
         return new CanonicalOperation
         {
             Name = field.Name,
             Description = field.Description,
             OperationType = opType,
             GraphQLFieldName = field.Name,
-            Arguments = field.Arguments.Select(a => MapArgument(a, visited)).ToList(),
-            ReturnType = MapType(field.Type, visited)
+            Arguments = field.Arguments.Select(a => MapArgument(a, new HashSet<string>())).ToList(),
+            ReturnType = MapType(field.Type, new HashSet<string>())
         };
     }
 
@@ -95,7 +93,7 @@ public sealed class HotChocolateSchemaSource : IGraphQLSchemaSource
         {
             Name = arg.Name,
             Description = arg.Description,
-            Type = MapType(arg.Type, visited),
+            Type = MapType(arg.Type, new HashSet<string>(visited)),
             IsRequired = arg.Type.IsNonNullType(),
             DefaultValue = arg.DefaultValue
         };
@@ -137,6 +135,13 @@ public sealed class HotChocolateSchemaSource : IGraphQLSchemaSource
 
     private CanonicalType MapNamedType(INamedType namedType, HashSet<string> visited)
     {
+        if (visited.Contains(namedType.Name))
+        {
+            return CreateShellType(namedType);
+        }
+
+        var currentPath = new HashSet<string>(visited) { namedType.Name };
+
         switch (namedType)
         {
             case ScalarType scalar:
@@ -155,35 +160,17 @@ public sealed class HotChocolateSchemaSource : IGraphQLSchemaSource
                 };
 
             case ObjectType objectType:
-                if (!visited.Add(objectType.Name))
-                {
-                    return new CanonicalType
-                    {
-                        Name = objectType.Name,
-                        Kind = CanonicalTypeKind.Object
-                    };
-                }
-
                 return new CanonicalType
                 {
                     Name = objectType.Name,
                     Kind = CanonicalTypeKind.Object,
                     Fields = objectType.Fields
                         .Where(f => !f.Name.StartsWith("__", StringComparison.Ordinal))
-                        .Select(f => MapField(f, visited))
+                        .Select(f => MapField(f, currentPath))
                         .ToList()
                 };
 
             case InputObjectType inputType:
-                if (!visited.Add(inputType.Name))
-                {
-                    return new CanonicalType
-                    {
-                        Name = inputType.Name,
-                        Kind = CanonicalTypeKind.InputObject
-                    };
-                }
-
                 return new CanonicalType
                 {
                     Name = inputType.Name,
@@ -193,7 +180,7 @@ public sealed class HotChocolateSchemaSource : IGraphQLSchemaSource
                         {
                             Name = f.Name,
                             Description = f.Description,
-                            Type = MapType(f.Type, visited)
+                            Type = MapType(f.Type, currentPath)
                         })
                         .ToList()
                 };
@@ -205,10 +192,10 @@ public sealed class HotChocolateSchemaSource : IGraphQLSchemaSource
                     Kind = CanonicalTypeKind.Interface,
                     Fields = interfaceType.Fields
                         .Where(f => !f.Name.StartsWith("__", StringComparison.Ordinal))
-                        .Select(f => MapField(f, visited))
+                        .Select(f => MapField(f, currentPath))
                         .ToList(),
                     PossibleTypes = _schema.GetPossibleTypes(interfaceType)
-                        .Select(t => MapNamedType(t, visited))
+                        .Select(t => MapNamedType(t, currentPath))
                         .ToList()
                 };
 
@@ -218,7 +205,7 @@ public sealed class HotChocolateSchemaSource : IGraphQLSchemaSource
                     Name = unionType.Name,
                     Kind = CanonicalTypeKind.Union,
                     PossibleTypes = unionType.Types.Values
-                        .Select(t => MapNamedType(t, visited))
+                        .Select(t => MapNamedType(t, currentPath))
                         .ToList()
                 };
 
@@ -237,10 +224,45 @@ public sealed class HotChocolateSchemaSource : IGraphQLSchemaSource
         {
             Name = field.Name,
             Description = field.Description,
-            Type = MapType(field.Type, visited),
+            Type = MapType(field.Type, new HashSet<string>(visited)),
             Arguments = field.Arguments.Count > 0
-                ? field.Arguments.Select(a => MapArgument(a, visited)).ToList()
+                ? field.Arguments.Select(a => MapArgument(a, new HashSet<string>(visited))).ToList()
                 : null
         };
     }
+
+    private static CanonicalType CreateShellType(INamedType namedType) =>
+        namedType switch
+        {
+            ObjectType => new CanonicalType
+            {
+                Name = namedType.Name,
+                Kind = CanonicalTypeKind.Object
+            },
+            InputObjectType => new CanonicalType
+            {
+                Name = namedType.Name,
+                Kind = CanonicalTypeKind.InputObject
+            },
+            InterfaceType => new CanonicalType
+            {
+                Name = namedType.Name,
+                Kind = CanonicalTypeKind.Interface
+            },
+            UnionType => new CanonicalType
+            {
+                Name = namedType.Name,
+                Kind = CanonicalTypeKind.Union
+            },
+            EnumType => new CanonicalType
+            {
+                Name = namedType.Name,
+                Kind = CanonicalTypeKind.Enum
+            },
+            _ => new CanonicalType
+            {
+                Name = namedType.Name,
+                Kind = CanonicalTypeKind.Scalar
+            }
+        };
 }

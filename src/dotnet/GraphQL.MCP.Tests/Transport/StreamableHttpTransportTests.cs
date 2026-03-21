@@ -63,8 +63,9 @@ public class StreamableHttpTransportTests
     {
         using var host = await CreateTestHost();
         using var client = host.GetTestClient();
+        var sessionId = await InitializeSessionAsync(client);
 
-        var response = await SendMcpRequest(client, "tools/call", null);
+        var response = await SendMcpRequest(client, "tools/call", null, sessionId);
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -77,8 +78,9 @@ public class StreamableHttpTransportTests
     {
         using var host = await CreateTestHost();
         using var client = host.GetTestClient();
+        var sessionId = await InitializeSessionAsync(client);
 
-        var response = await SendMcpRequest(client, "tools/call", "{}");
+        var response = await SendMcpRequest(client, "tools/call", "{}", sessionId);
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -129,9 +131,10 @@ public class StreamableHttpTransportTests
     {
         using var host = await CreateTestHost();
         using var client = host.GetTestClient();
+        var sessionId = await InitializeSessionAsync(client);
 
         var callParams = JsonSerializer.Serialize(new { name = "nonexistent_tool", arguments = new { } });
-        var response = await SendMcpRequest(client, "tools/call", callParams);
+        var response = await SendMcpRequest(client, "tools/call", callParams, sessionId);
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -169,6 +172,21 @@ public class StreamableHttpTransportTests
 
         var json = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
         json.RootElement.GetProperty("id").GetInt64().Should().Be(42);
+    }
+
+    [Fact]
+    public async Task Tools_list_without_session_should_return_400()
+    {
+        using var host = await CreateTestHost();
+        using var client = host.GetTestClient();
+
+        var response = await SendMcpRequest(client, "tools/list", null);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+
+        var json = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+        json.RootElement.GetProperty("error").GetProperty("message").GetString()
+            .Should().Be("Missing Mcp-Session-Id header");
     }
 
     private static async Task<IHost> CreateTestHost()
@@ -220,13 +238,28 @@ public class StreamableHttpTransportTests
     }
 
     private static async Task<HttpResponseMessage> SendMcpRequest(
-        HttpClient client, string method, string? paramsJson)
+        HttpClient client, string method, string? paramsJson, string? sessionId = null)
     {
         var body = paramsJson is not null
             ? $"{{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"{method}\",\"params\":{paramsJson}}}"
             : $"{{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"{method}\"}}";
 
-        var content = new StringContent(body, Encoding.UTF8, "application/json");
-        return await client.PostAsync("/mcp", content);
+        var request = new HttpRequestMessage(HttpMethod.Post, "/mcp")
+        {
+            Content = new StringContent(body, Encoding.UTF8, "application/json")
+        };
+
+        if (!string.IsNullOrWhiteSpace(sessionId))
+        {
+            request.Headers.Add("Mcp-Session-Id", sessionId);
+        }
+
+        return await client.SendAsync(request);
+    }
+
+    private static async Task<string> InitializeSessionAsync(HttpClient client)
+    {
+        var response = await SendMcpRequest(client, "initialize", null);
+        return response.Headers.GetValues("Mcp-Session-Id").First();
     }
 }

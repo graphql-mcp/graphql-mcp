@@ -303,6 +303,20 @@ public class PolicyEngineTests
         name.Length.Should().BeLessOrEqualTo(64);
     }
 
+    [Fact]
+    public void Should_use_deterministic_suffix_for_truncated_tool_names()
+    {
+        var longName = new string('a', 70);
+
+        var first = CreateSut(new McpOptions { NamingPolicy = ToolNamingPolicy.Raw })
+            .TransformToolName(CreateOperation(longName));
+        var second = CreateSut(new McpOptions { NamingPolicy = ToolNamingPolicy.Raw })
+            .TransformToolName(CreateOperation(longName));
+
+        first.Should().Be(second);
+        first.Should().MatchRegex("^a{55}_[a-f0-9]{8}$");
+    }
+
     // --- MaxToolCount boundary ---
 
     [Fact]

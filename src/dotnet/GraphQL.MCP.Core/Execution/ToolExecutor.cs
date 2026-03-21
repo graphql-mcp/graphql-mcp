@@ -31,6 +31,12 @@ public sealed class ToolExecutor
         _toolRegistry.Clear();
         foreach (var tool in tools)
         {
+            if (_toolRegistry.ContainsKey(tool.Name))
+            {
+                throw new InvalidOperationException(
+                    $"Duplicate MCP tool name '{tool.Name}' cannot be registered for execution.");
+            }
+
             _toolRegistry[tool.Name] = tool;
         }
         _logger.LogDebug("Registered {Count} tools for execution", tools.Count);

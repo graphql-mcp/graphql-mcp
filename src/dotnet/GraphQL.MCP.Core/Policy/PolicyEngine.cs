@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.RegularExpressions;
 using GraphQL.MCP.Abstractions;
 using GraphQL.MCP.Abstractions.Canonical;
@@ -133,7 +135,7 @@ public sealed partial class PolicyEngine : IMcpPolicy
         // Enforce max length
         if (baseName.Length > 64)
         {
-            baseName = baseName[..60] + "_" + Math.Abs(baseName.GetHashCode()).ToString("x3")[..3];
+            baseName = baseName[..55] + "_" + CreateStableHashSuffix(baseName);
         }
 
         return baseName;
@@ -201,6 +203,12 @@ public sealed partial class PolicyEngine : IMcpPolicy
             current = current.OfType;
         }
         return current.Name;
+    }
+
+    private static string CreateStableHashSuffix(string value)
+    {
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(value));
+        return Convert.ToHexString(hash.AsSpan(0, 4)).ToLowerInvariant();
     }
 
     [GeneratedRegex(@"[^a-zA-Z0-9_]")]

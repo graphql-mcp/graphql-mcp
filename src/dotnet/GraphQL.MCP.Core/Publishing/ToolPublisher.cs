@@ -37,10 +37,19 @@ public sealed class ToolPublisher
         activity?.SetTag("mcp.publish.input_count", operations.Count);
 
         var tools = new List<McpToolDescriptor>();
+        var publishedNames = new Dictionary<string, string>(StringComparer.Ordinal);
 
         foreach (var op in operations)
         {
             var toolName = _policy.TransformToolName(op);
+            if (publishedNames.TryGetValue(toolName, out var existingField))
+            {
+                throw new InvalidOperationException(
+                    $"Multiple GraphQL operations map to the same MCP tool name '{toolName}': " +
+                    $"'{existingField}' and '{op.GraphQLFieldName}'. " +
+                    "Adjust ToolPrefix/NamingPolicy or exclude one of the operations.");
+            }
+
             var inputSchema = BuildInputSchema(op);
             var graphqlQuery = BuildGraphQLQuery(op);
             var argumentMapping = BuildArgumentMapping(op);
@@ -59,6 +68,7 @@ public sealed class ToolPublisher
             };
 
             tools.Add(descriptor);
+            publishedNames[toolName] = op.GraphQLFieldName;
             _logger.LogDebug(
                 "Published tool '{ToolName}' from GraphQL field '{Field}' ({OpType})",
                 toolName, op.GraphQLFieldName, op.OperationType);
