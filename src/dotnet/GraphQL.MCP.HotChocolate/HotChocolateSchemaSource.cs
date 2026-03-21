@@ -1,6 +1,7 @@
 using GraphQL.MCP.Abstractions;
 using GraphQL.MCP.Abstractions.Canonical;
 using HotChocolate;
+using HotChocolate.Execution;
 using HotChocolate.Types;
 using Microsoft.Extensions.Logging;
 using CanonicalTypeKind = GraphQL.MCP.Abstractions.Canonical.TypeKind;
@@ -9,58 +10,68 @@ namespace GraphQL.MCP.HotChocolate;
 
 /// <summary>
 /// Extracts canonical operations and types from Hot Chocolate's schema.
+/// Uses IRequestExecutorResolver to lazily resolve the schema at runtime,
+/// since Hot Chocolate does not register ISchema directly in the DI container.
 /// </summary>
 public sealed class HotChocolateSchemaSource : IGraphQLSchemaSource
 {
-    private readonly ISchema _schema;
+    private readonly IRequestExecutorResolver _executorResolver;
     private readonly ILogger<HotChocolateSchemaSource> _logger;
 
-    public HotChocolateSchemaSource(ISchema schema, ILogger<HotChocolateSchemaSource> logger)
+    public HotChocolateSchemaSource(IRequestExecutorResolver executorResolver, ILogger<HotChocolateSchemaSource> logger)
     {
-        _schema = schema;
+        _executorResolver = executorResolver;
         _logger = logger;
     }
 
-    /// <inheritdoc />
-    public Task<IReadOnlyList<CanonicalOperation>> GetOperationsAsync(CancellationToken cancellationToken = default)
+    private async Task<ISchema> GetSchemaAsync(CancellationToken cancellationToken)
     {
+        var executor = await _executorResolver.GetRequestExecutorAsync(cancellationToken: cancellationToken);
+        return executor.Schema;
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<CanonicalOperation>> GetOperationsAsync(CancellationToken cancellationToken = default)
+    {
+        var schema = await GetSchemaAsync(cancellationToken);
         var operations = new List<CanonicalOperation>();
 
         // Extract query fields
-        if (_schema.QueryType is not null)
+        if (schema.QueryType is not null)
         {
-            foreach (var field in _schema.QueryType.Fields)
+            foreach (var field in schema.QueryType.Fields)
             {
                 if (field.Name.StartsWith("__", StringComparison.Ordinal))
                     continue;
 
-                operations.Add(MapFieldToOperation(field, OperationType.Query));
+                operations.Add(MapFieldToOperation(field, OperationType.Query, schema));
             }
         }
 
         // Extract mutation fields
-        if (_schema.MutationType is not null)
+        if (schema.MutationType is not null)
         {
-            foreach (var field in _schema.MutationType.Fields)
+            foreach (var field in schema.MutationType.Fields)
             {
                 if (field.Name.StartsWith("__", StringComparison.Ordinal))
                     continue;
 
-                operations.Add(MapFieldToOperation(field, OperationType.Mutation));
+                operations.Add(MapFieldToOperation(field, OperationType.Mutation, schema));
             }
         }
 
         _logger.LogDebug("Extracted {Count} operations from Hot Chocolate schema", operations.Count);
 
-        return Task.FromResult<IReadOnlyList<CanonicalOperation>>(operations);
+        return operations;
     }
 
     /// <inheritdoc />
-    public Task<IReadOnlyDictionary<string, CanonicalType>> GetTypesAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyDictionary<string, CanonicalType>> GetTypesAsync(CancellationToken cancellationToken = default)
     {
+        var schema = await GetSchemaAsync(cancellationToken);
         var types = new Dictionary<string, CanonicalType>();
 
-        foreach (var namedType in _schema.Types)
+        foreach (var namedType in schema.Types)
         {
             if (namedType.Name.StartsWith("__", StringComparison.Ordinal))
                 continue;
@@ -68,13 +79,13 @@ public sealed class HotChocolateSchemaSource : IGraphQLSchemaSource
             if (types.ContainsKey(namedType.Name))
                 continue;
 
-            types[namedType.Name] = MapNamedType(namedType, new HashSet<string>());
+            types[namedType.Name] = MapNamedType(namedType, new HashSet<string>(), schema);
         }
 
-        return Task.FromResult<IReadOnlyDictionary<string, CanonicalType>>(types);
+        return types;
     }
 
-    private CanonicalOperation MapFieldToOperation(IOutputField field, OperationType opType)
+    private CanonicalOperation MapFieldToOperation(IOutputField field, OperationType opType, ISchema schema)
     {
         return new CanonicalOperation
         {
@@ -82,28 +93,28 @@ public sealed class HotChocolateSchemaSource : IGraphQLSchemaSource
             Description = field.Description,
             OperationType = opType,
             GraphQLFieldName = field.Name,
-            Arguments = field.Arguments.Select(a => MapArgument(a, new HashSet<string>())).ToList(),
-            ReturnType = MapType(field.Type, new HashSet<string>())
+            Arguments = field.Arguments.Select(a => MapArgument(a, new HashSet<string>(), schema)).ToList(),
+            ReturnType = MapType(field.Type, new HashSet<string>(), schema)
         };
     }
 
-    private CanonicalArgument MapArgument(IInputField arg, HashSet<string> visited)
+    private CanonicalArgument MapArgument(IInputField arg, HashSet<string> visited, ISchema schema)
     {
         return new CanonicalArgument
         {
             Name = arg.Name,
             Description = arg.Description,
-            Type = MapType(arg.Type, new HashSet<string>(visited)),
+            Type = MapType(arg.Type, new HashSet<string>(visited), schema),
             IsRequired = arg.Type.IsNonNullType(),
             DefaultValue = arg.DefaultValue
         };
     }
 
-    private CanonicalType MapType(IType type, HashSet<string> visited)
+    private CanonicalType MapType(IType type, HashSet<string> visited, ISchema schema)
     {
         if (type is NonNullType nonNull)
         {
-            var inner = MapType(nonNull.Type, visited);
+            var inner = MapType(nonNull.Type, visited, schema);
             return new CanonicalType
             {
                 Name = inner.Name,
@@ -115,7 +126,7 @@ public sealed class HotChocolateSchemaSource : IGraphQLSchemaSource
 
         if (type is ListType listType)
         {
-            var inner = MapType(listType.ElementType, visited);
+            var inner = MapType(listType.ElementType, visited, schema);
             return new CanonicalType
             {
                 Name = $"[{inner.Name}]",
@@ -127,13 +138,13 @@ public sealed class HotChocolateSchemaSource : IGraphQLSchemaSource
 
         if (type is INamedType namedType)
         {
-            return MapNamedType(namedType, visited);
+            return MapNamedType(namedType, visited, schema);
         }
 
         return new CanonicalType { Name = type.ToString() ?? "Unknown", Kind = CanonicalTypeKind.Scalar };
     }
 
-    private CanonicalType MapNamedType(INamedType namedType, HashSet<string> visited)
+    private CanonicalType MapNamedType(INamedType namedType, HashSet<string> visited, ISchema schema)
     {
         if (visited.Contains(namedType.Name))
         {
@@ -166,7 +177,7 @@ public sealed class HotChocolateSchemaSource : IGraphQLSchemaSource
                     Kind = CanonicalTypeKind.Object,
                     Fields = objectType.Fields
                         .Where(f => !f.Name.StartsWith("__", StringComparison.Ordinal))
-                        .Select(f => MapField(f, currentPath))
+                        .Select(f => MapField(f, currentPath, schema))
                         .ToList()
                 };
 
@@ -180,7 +191,7 @@ public sealed class HotChocolateSchemaSource : IGraphQLSchemaSource
                         {
                             Name = f.Name,
                             Description = f.Description,
-                            Type = MapType(f.Type, currentPath)
+                            Type = MapType(f.Type, currentPath, schema)
                         })
                         .ToList()
                 };
@@ -192,10 +203,10 @@ public sealed class HotChocolateSchemaSource : IGraphQLSchemaSource
                     Kind = CanonicalTypeKind.Interface,
                     Fields = interfaceType.Fields
                         .Where(f => !f.Name.StartsWith("__", StringComparison.Ordinal))
-                        .Select(f => MapField(f, currentPath))
+                        .Select(f => MapField(f, currentPath, schema))
                         .ToList(),
-                    PossibleTypes = _schema.GetPossibleTypes(interfaceType)
-                        .Select(t => MapNamedType(t, currentPath))
+                    PossibleTypes = schema.GetPossibleTypes(interfaceType)
+                        .Select(t => MapNamedType(t, currentPath, schema))
                         .ToList()
                 };
 
@@ -205,7 +216,7 @@ public sealed class HotChocolateSchemaSource : IGraphQLSchemaSource
                     Name = unionType.Name,
                     Kind = CanonicalTypeKind.Union,
                     PossibleTypes = unionType.Types.Values
-                        .Select(t => MapNamedType(t, currentPath))
+                        .Select(t => MapNamedType(t, currentPath, schema))
                         .ToList()
                 };
 
@@ -218,15 +229,15 @@ public sealed class HotChocolateSchemaSource : IGraphQLSchemaSource
         }
     }
 
-    private CanonicalField MapField(IOutputField field, HashSet<string> visited)
+    private CanonicalField MapField(IOutputField field, HashSet<string> visited, ISchema schema)
     {
         return new CanonicalField
         {
             Name = field.Name,
             Description = field.Description,
-            Type = MapType(field.Type, new HashSet<string>(visited)),
+            Type = MapType(field.Type, new HashSet<string>(visited), schema),
             Arguments = field.Arguments.Count > 0
-                ? field.Arguments.Select(a => MapArgument(a, new HashSet<string>(visited))).ToList()
+                ? field.Arguments.Select(a => MapArgument(a, new HashSet<string>(visited), schema)).ToList()
                 : null
         };
     }

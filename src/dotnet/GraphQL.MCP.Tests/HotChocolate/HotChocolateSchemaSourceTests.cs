@@ -19,9 +19,8 @@ public class HotChocolateSchemaSourceTests
 
         await using var serviceProvider = services.BuildServiceProvider();
         var executorResolver = serviceProvider.GetRequiredService<IRequestExecutorResolver>();
-        var executor = await executorResolver.GetRequestExecutorAsync();
         var sut = new HotChocolateSchemaSource(
-            executor.Schema,
+            executorResolver,
             NullLogger<HotChocolateSchemaSource>.Instance);
 
         var operations = await sut.GetOperationsAsync();
