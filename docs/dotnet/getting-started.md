@@ -83,7 +83,8 @@ Add to your Claude Desktop config (`claude_desktop_config.json`):
 {
   "mcpServers": {
     "my-graphql-api": {
-      "url": "http://localhost:5000/mcp"
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "http://localhost:5000/mcp"]
     }
   }
 }
