@@ -17,7 +17,7 @@ public class HotChocolateSchemaSourceTests
         services.AddLogging();
         services.AddGraphQLServer().AddQueryType<Query>();
 
-        using var serviceProvider = services.BuildServiceProvider();
+        await using var serviceProvider = services.BuildServiceProvider();
         var executorResolver = serviceProvider.GetRequiredService<IRequestExecutorResolver>();
         var executor = await executorResolver.GetRequestExecutorAsync();
         var sut = new HotChocolateSchemaSource(
@@ -26,10 +26,16 @@ public class HotChocolateSchemaSourceTests
 
         var operations = await sut.GetOperationsAsync();
         var checkout = operations.Single(op => op.GraphQLFieldName == "checkout");
-        var checkoutFields = checkout.ReturnType.Fields!.ToDictionary(field => field.Name);
+        var returnType = checkout.ReturnType.IsNonNull ? checkout.ReturnType.OfType! : checkout.ReturnType;
+        var checkoutFields = returnType.Fields!.ToDictionary(field => field.Name);
 
-        var shippingFields = checkoutFields["shippingAddress"].Type.Fields!;
-        var billingFields = checkoutFields["billingAddress"].Type.Fields!;
+        var shippingType = checkoutFields["shippingAddress"].Type;
+        shippingType = shippingType.IsNonNull ? shippingType.OfType! : shippingType;
+        var shippingFields = shippingType.Fields!;
+
+        var billingType = checkoutFields["billingAddress"].Type;
+        billingType = billingType.IsNonNull ? billingType.OfType! : billingType;
+        var billingFields = billingType.Fields!;
 
         shippingFields.Select(field => field.Name).Should().Contain(["street", "city"]);
         billingFields.Select(field => field.Name).Should().Contain(["street", "city"]);
