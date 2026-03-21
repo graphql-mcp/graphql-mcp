@@ -29,8 +29,8 @@ public sealed class HotChocolateExecutor : IGraphQLExecutor
     {
         var executor = await _executorResolver.GetRequestExecutorAsync(cancellationToken: cancellationToken);
 
-        var queryRequestBuilder = QueryRequestBuilder.New()
-            .SetQuery(request.Query);
+        var queryRequestBuilder = OperationRequestBuilder.New()
+            .SetDocument(request.Query);
 
         if (request.Variables is not null)
         {
@@ -42,18 +42,18 @@ public sealed class HotChocolateExecutor : IGraphQLExecutor
 
         if (request.OperationName is not null)
         {
-            queryRequestBuilder.SetOperation(request.OperationName);
+            queryRequestBuilder.SetOperationName(request.OperationName);
         }
 
-        var queryRequest = queryRequestBuilder.Create();
+        var queryRequest = queryRequestBuilder.Build();
 
         _logger.LogDebug("Executing Hot Chocolate query: {Query}", request.Query);
 
         var result = await executor.ExecuteAsync(queryRequest, cancellationToken);
 
-        if (result is IQueryResult queryResult)
+        if (result is IOperationResult operationResult)
         {
-            return MapResult(queryResult);
+            return MapResult(operationResult);
         }
 
         _logger.LogWarning("Unexpected result type: {Type}", result.GetType().Name);
@@ -63,26 +63,26 @@ public sealed class HotChocolateExecutor : IGraphQLExecutor
         };
     }
 
-    private GraphQLExecutionResult MapResult(IQueryResult queryResult)
+    private GraphQLExecutionResult MapResult(IOperationResult operationResult)
     {
         object? data = null;
         List<GraphQLError>? errors = null;
 
-        if (queryResult.Data is not null)
+        if (operationResult.Data is not null)
         {
             // Serialize HC's data to JSON and back to get a clean object graph
             using var stream = new MemoryStream();
             using (var writer = new Utf8JsonWriter(stream))
             {
-                WriteResultData(writer, queryResult.Data);
+                WriteResultData(writer, operationResult.Data);
             }
             stream.Position = 0;
             data = JsonSerializer.Deserialize<object>(stream);
         }
 
-        if (queryResult.Errors is { Count: > 0 })
+        if (operationResult.Errors is { Count: > 0 })
         {
-            errors = queryResult.Errors.Select(e => new GraphQLError
+            errors = operationResult.Errors.Select(e => new GraphQLError
             {
                 Message = e.Message,
                 Path = e.Path?.ToList()

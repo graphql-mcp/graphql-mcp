@@ -3,6 +3,7 @@ using GraphQL.MCP.Abstractions.Canonical;
 using HotChocolate;
 using HotChocolate.Types;
 using Microsoft.Extensions.Logging;
+using CanonicalTypeKind = GraphQL.MCP.Abstractions.Canonical.TypeKind;
 
 namespace GraphQL.MCP.HotChocolate;
 
@@ -108,7 +109,7 @@ public sealed class HotChocolateSchemaSource : IGraphQLSchemaSource
             return new CanonicalType
             {
                 Name = inner.Name,
-                Kind = TypeKind.NonNull,
+                Kind = CanonicalTypeKind.NonNull,
                 IsNonNull = true,
                 OfType = inner
             };
@@ -120,7 +121,7 @@ public sealed class HotChocolateSchemaSource : IGraphQLSchemaSource
             return new CanonicalType
             {
                 Name = $"[{inner.Name}]",
-                Kind = TypeKind.List,
+                Kind = CanonicalTypeKind.List,
                 IsList = true,
                 OfType = inner
             };
@@ -131,7 +132,7 @@ public sealed class HotChocolateSchemaSource : IGraphQLSchemaSource
             return MapNamedType(namedType, visited);
         }
 
-        return new CanonicalType { Name = type.ToString() ?? "Unknown", Kind = TypeKind.Scalar };
+        return new CanonicalType { Name = type.ToString() ?? "Unknown", Kind = CanonicalTypeKind.Scalar };
     }
 
     private CanonicalType MapNamedType(INamedType namedType, HashSet<string> visited)
@@ -142,14 +143,14 @@ public sealed class HotChocolateSchemaSource : IGraphQLSchemaSource
                 return new CanonicalType
                 {
                     Name = scalar.Name,
-                    Kind = TypeKind.Scalar
+                    Kind = CanonicalTypeKind.Scalar
                 };
 
             case EnumType enumType:
                 return new CanonicalType
                 {
                     Name = enumType.Name,
-                    Kind = TypeKind.Enum,
+                    Kind = CanonicalTypeKind.Enum,
                     EnumValues = enumType.Values.Select(v => v.Name).ToList()
                 };
 
@@ -159,14 +160,14 @@ public sealed class HotChocolateSchemaSource : IGraphQLSchemaSource
                     return new CanonicalType
                     {
                         Name = objectType.Name,
-                        Kind = TypeKind.Object
+                        Kind = CanonicalTypeKind.Object
                     };
                 }
 
                 return new CanonicalType
                 {
                     Name = objectType.Name,
-                    Kind = TypeKind.Object,
+                    Kind = CanonicalTypeKind.Object,
                     Fields = objectType.Fields
                         .Where(f => !f.Name.StartsWith("__", StringComparison.Ordinal))
                         .Select(f => MapField(f, visited))
@@ -179,14 +180,14 @@ public sealed class HotChocolateSchemaSource : IGraphQLSchemaSource
                     return new CanonicalType
                     {
                         Name = inputType.Name,
-                        Kind = TypeKind.InputObject
+                        Kind = CanonicalTypeKind.InputObject
                     };
                 }
 
                 return new CanonicalType
                 {
                     Name = inputType.Name,
-                    Kind = TypeKind.InputObject,
+                    Kind = CanonicalTypeKind.InputObject,
                     Fields = inputType.Fields
                         .Select(f => new CanonicalField
                         {
@@ -201,7 +202,7 @@ public sealed class HotChocolateSchemaSource : IGraphQLSchemaSource
                 return new CanonicalType
                 {
                     Name = interfaceType.Name,
-                    Kind = TypeKind.Interface,
+                    Kind = CanonicalTypeKind.Interface,
                     Fields = interfaceType.Fields
                         .Where(f => !f.Name.StartsWith("__", StringComparison.Ordinal))
                         .Select(f => MapField(f, visited))
@@ -215,7 +216,7 @@ public sealed class HotChocolateSchemaSource : IGraphQLSchemaSource
                 return new CanonicalType
                 {
                     Name = unionType.Name,
-                    Kind = TypeKind.Union,
+                    Kind = CanonicalTypeKind.Union,
                     PossibleTypes = unionType.Types.Values
                         .Select(t => MapNamedType(t, visited))
                         .ToList()
@@ -225,7 +226,7 @@ public sealed class HotChocolateSchemaSource : IGraphQLSchemaSource
                 return new CanonicalType
                 {
                     Name = namedType.Name,
-                    Kind = TypeKind.Scalar
+                    Kind = CanonicalTypeKind.Scalar
                 };
         }
     }

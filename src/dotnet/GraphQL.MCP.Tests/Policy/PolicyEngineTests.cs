@@ -22,12 +22,12 @@ public class PolicyEngineTests
         string name,
         OperationType type = OperationType.Query,
         string returnTypeName = "String") => new()
-    {
-        Name = name,
-        GraphQLFieldName = name,
-        OperationType = type,
-        ReturnType = new CanonicalType { Name = returnTypeName, Kind = TypeKind.Scalar }
-    };
+        {
+            Name = name,
+            GraphQLFieldName = name,
+            OperationType = type,
+            ReturnType = new CanonicalType { Name = returnTypeName, Kind = TypeKind.Scalar }
+        };
 
     // --- Exclusion tests ---
 

@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NSubstitute;
@@ -24,8 +25,8 @@ public class EndToEndTests
     [Fact]
     public async Task Initialize_should_return_capabilities()
     {
-        using var server = await CreateTestServer();
-        using var client = server.CreateClient();
+        using var host = await CreateTestHost();
+        using var client = host.GetTestClient();
 
         var response = await SendMcpRequest(client, "initialize", null);
 
@@ -42,8 +43,8 @@ public class EndToEndTests
     [Fact]
     public async Task Tools_list_should_return_discovered_tools()
     {
-        using var server = await CreateTestServer();
-        using var client = server.CreateClient();
+        using var host = await CreateTestHost();
+        using var client = host.GetTestClient();
 
         var response = await SendMcpRequest(client, "tools/list", null);
 
@@ -59,8 +60,8 @@ public class EndToEndTests
     [Fact]
     public async Task Tools_call_should_execute_and_return_result()
     {
-        using var server = await CreateTestServer();
-        using var client = server.CreateClient();
+        using var host = await CreateTestHost();
+        using var client = host.GetTestClient();
 
         // First get tools list
         var listResponse = await SendMcpRequest(client, "tools/list", null);
@@ -83,8 +84,8 @@ public class EndToEndTests
     [Fact]
     public async Task Unknown_method_should_return_error()
     {
-        using var server = await CreateTestServer();
-        using var client = server.CreateClient();
+        using var host = await CreateTestHost();
+        using var client = host.GetTestClient();
 
         var response = await SendMcpRequest(client, "unknown/method", null);
 
@@ -97,8 +98,8 @@ public class EndToEndTests
     [Fact]
     public async Task Invalid_json_should_return_400()
     {
-        using var server = await CreateTestServer();
-        using var client = server.CreateClient();
+        using var host = await CreateTestHost();
+        using var client = host.GetTestClient();
 
         var content = new StringContent("not json", Encoding.UTF8, "application/json");
         var response = await client.PostAsync("/mcp", content);
@@ -106,7 +107,7 @@ public class EndToEndTests
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    private static async Task<TestServer> CreateTestServer()
+    private static async Task<IHost> CreateTestHost()
     {
         // Create mock schema source and executor
         var schemaSource = Substitute.For<IGraphQLSchemaSource>();
@@ -132,27 +133,31 @@ public class EndToEndTests
                 Data = new Dictionary<string, object?> { ["hello"] = "world" }
             });
 
-        var builder = new WebHostBuilder()
-            .ConfigureServices(services =>
+        var host = await new HostBuilder()
+            .ConfigureWebHost(webBuilder =>
             {
-                services.AddSingleton(schemaSource);
-                services.AddSingleton(executor);
-                services.AddGraphQLMcp();
-                services.AddRouting();
-            })
-            .Configure(app =>
-            {
-                app.UseRouting();
-                app.UseEndpoints(endpoints =>
+                webBuilder.UseTestServer();
+                webBuilder.ConfigureServices(services =>
                 {
-                    endpoints.MapGraphQLMcp();
+                    services.AddSingleton(schemaSource);
+                    services.AddSingleton(executor);
+                    services.AddGraphQLMcp();
+                    services.AddRouting();
                 });
-            });
+                webBuilder.Configure(app =>
+                {
+                    app.UseRouting();
+                    app.UseEndpoints(endpoints =>
+                    {
+                        endpoints.MapGraphQLMcp();
+                    });
+                });
+            })
+            .StartAsync();
 
-        var server = new TestServer(builder);
         // Force the singleton resolution so tools are registered
-        server.Services.GetRequiredService<IReadOnlyList<McpToolDescriptor>>();
-        return server;
+        host.Services.GetRequiredService<IReadOnlyList<McpToolDescriptor>>();
+        return host;
     }
 
     private static async Task<HttpResponseMessage> SendMcpRequest(

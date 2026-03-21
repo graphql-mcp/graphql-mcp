@@ -26,14 +26,14 @@ public class ToolPublisherTests
         string name,
         string? description = null,
         List<CanonicalArgument>? args = null) => new()
-    {
-        Name = name,
-        GraphQLFieldName = name,
-        Description = description,
-        OperationType = OperationType.Query,
-        Arguments = args ?? [],
-        ReturnType = new CanonicalType { Name = "String", Kind = TypeKind.Scalar }
-    };
+        {
+            Name = name,
+            GraphQLFieldName = name,
+            Description = description,
+            OperationType = OperationType.Query,
+            Arguments = args ?? [],
+            ReturnType = new CanonicalType { Name = "String", Kind = TypeKind.Scalar }
+        };
 
     [Fact]
     public void Should_publish_tools_from_operations()
