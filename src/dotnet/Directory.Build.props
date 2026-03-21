@@ -1,0 +1,20 @@
+<Project>
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+
+    <!-- NuGet package defaults -->
+    <Authors>graphql-mcp contributors</Authors>
+    <Company>graphql-mcp</Company>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/graphql-mcp/graphql-mcp</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/graphql-mcp/graphql-mcp</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>graphql;mcp;model-context-protocol;ai;llm;hot-chocolate</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <Copyright>Copyright (c) 2026 graphql-mcp contributors</Copyright>
+  </PropertyGroup>
+</Project>

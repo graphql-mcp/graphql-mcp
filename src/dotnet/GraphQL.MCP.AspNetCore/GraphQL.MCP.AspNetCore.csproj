@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>GraphQL.MCP.AspNetCore</PackageId>
+    <Description>ASP.NET Core hosting for graphql-mcp — Streamable HTTP transport and endpoint routing.</Description>
+    <IsPackable>true</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\GraphQL.MCP.Core\GraphQL.MCP.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="ModelContextProtocol" Version="0.*" />
+  </ItemGroup>
+
+</Project>

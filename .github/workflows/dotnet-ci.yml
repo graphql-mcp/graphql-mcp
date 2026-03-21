@@ -1,0 +1,53 @@
+name: .NET CI
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'src/dotnet/**'
+      - 'examples/**'
+      - '.github/workflows/dotnet-ci.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/dotnet/**'
+      - 'examples/**'
+      - '.github/workflows/dotnet-ci.yml'
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        dotnet-version: ['10.0.x']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ matrix.dotnet-version }}
+
+      - name: Restore
+        run: dotnet restore src/dotnet/GraphQL.MCP.sln
+
+      - name: Check formatting
+        run: dotnet format src/dotnet/GraphQL.MCP.sln --verify-no-changes --verbosity diagnostic
+
+      - name: Build
+        run: dotnet build src/dotnet/GraphQL.MCP.sln --no-restore -c Release
+
+      - name: Test
+        run: dotnet test src/dotnet/GraphQL.MCP.sln --no-build -c Release --verbosity normal --collect:"XPlat Code Coverage"
+
+      - name: Build examples
+        run: |
+          dotnet restore examples/dotnet-hotchocolate-minimal/
+          dotnet restore examples/dotnet-hotchocolate-secure/
+          dotnet build examples/dotnet-hotchocolate-minimal/ --no-restore -c Release
+          dotnet build examples/dotnet-hotchocolate-secure/ --no-restore -c Release
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: '**/coverage.cobertura.xml'
+          fail_ci_if_error: false
