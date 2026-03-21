@@ -331,4 +331,36 @@ public class PolicyEngineTests
 
         result.Should().HaveCount(3);
     }
+
+    // --- IsFieldExcluded tests ---
+
+    [Fact]
+    public void IsFieldExcluded_should_return_true_for_excluded_fields()
+    {
+        var sut = CreateSut(new McpOptions { ExcludedFields = ["internalNotes", "password"] });
+
+        sut.IsFieldExcluded("internalNotes").Should().BeTrue();
+        sut.IsFieldExcluded("password").Should().BeTrue();
+        sut.IsFieldExcluded("title").Should().BeFalse();
+    }
+
+    [Fact]
+    public void IsFieldExcluded_should_support_glob_patterns()
+    {
+        var sut = CreateSut(new McpOptions { ExcludedFields = ["internal*", "*secret*"] });
+
+        sut.IsFieldExcluded("internalNotes").Should().BeTrue();
+        sut.IsFieldExcluded("internalScore").Should().BeTrue();
+        sut.IsFieldExcluded("apisecretkey").Should().BeTrue("lowercase 'secret' matches glob pattern");
+        sut.IsFieldExcluded("apiSecretKey").Should().BeFalse("glob matching is case-sensitive; 'Secret' != 'secret'");
+        sut.IsFieldExcluded("title").Should().BeFalse();
+    }
+
+    [Fact]
+    public void IsFieldExcluded_should_return_false_when_no_exclusions()
+    {
+        var sut = CreateSut(new McpOptions());
+
+        sut.IsFieldExcluded("anything").Should().BeFalse();
+    }
 }
