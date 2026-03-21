@@ -583,4 +583,103 @@ public class ToolPublisherTests
         act.Should().Throw<InvalidOperationException>()
             .WithMessage("*same MCP tool name 'get_users'*");
     }
+
+    // --- Regression: ExcludedFields should filter nested selection set fields ---
+
+    [Fact]
+    public void Should_exclude_fields_from_selection_set_when_in_ExcludedFields()
+    {
+        // Regression: ExcludedFields only filtered root operations via
+        // PolicyEngine.ShouldIncludeOperation, but leaked into selection sets.
+        // e.g., ExcludedFields: ["internalNotes"] excluded the adminPanel root op
+        // but internalNotes still appeared in Book type selection sets.
+        var sut = CreateSut(new McpOptions
+        {
+            ExcludedFields = ["internalNotes"],
+            MaxOutputDepth = 3
+        });
+
+        var bookType = new CanonicalType
+        {
+            Name = "Book",
+            Kind = TypeKind.Object,
+            Fields =
+            [
+                new CanonicalField { Name = "title", Type = new CanonicalType { Name = "String", Kind = TypeKind.Scalar } },
+                new CanonicalField { Name = "author", Type = new CanonicalType { Name = "String", Kind = TypeKind.Scalar } },
+                new CanonicalField { Name = "internalNotes", Type = new CanonicalType { Name = "String", Kind = TypeKind.Scalar } }
+            ]
+        };
+
+        var op = new CanonicalOperation
+        {
+            Name = "books",
+            GraphQLFieldName = "books",
+            OperationType = OperationType.Query,
+            ReturnType = bookType
+        };
+
+        var tools = sut.Publish([op]);
+
+        tools[0].GraphQLQuery.Should().Contain("title");
+        tools[0].GraphQLQuery.Should().Contain("author");
+        tools[0].GraphQLQuery.Should().NotContain("internalNotes",
+            "ExcludedFields should filter fields from nested selection sets, not just root operations");
+    }
+
+    [Fact]
+    public void Should_exclude_glob_matched_fields_from_nested_selection_set()
+    {
+        var sut = CreateSut(new McpOptions
+        {
+            ExcludedFields = ["internal*"],
+            MaxOutputDepth = 3
+        });
+
+        var reviewType = new CanonicalType
+        {
+            Name = "Review",
+            Kind = TypeKind.Object,
+            Fields =
+            [
+                new CanonicalField { Name = "rating", Type = new CanonicalType { Name = "Int", Kind = TypeKind.Scalar } },
+                new CanonicalField { Name = "internalScore", Type = new CanonicalType { Name = "Float", Kind = TypeKind.Scalar } },
+                new CanonicalField { Name = "internalFlags", Type = new CanonicalType { Name = "String", Kind = TypeKind.Scalar } }
+            ]
+        };
+
+        var bookType = new CanonicalType
+        {
+            Name = "Book",
+            Kind = TypeKind.Object,
+            Fields =
+            [
+                new CanonicalField { Name = "title", Type = new CanonicalType { Name = "String", Kind = TypeKind.Scalar } },
+                new CanonicalField { Name = "reviews", Type = new CanonicalType
+                {
+                    Name = "[Review]",
+                    Kind = TypeKind.List,
+                    IsList = true,
+                    OfType = reviewType
+                }}
+            ]
+        };
+
+        var op = new CanonicalOperation
+        {
+            Name = "books",
+            GraphQLFieldName = "books",
+            OperationType = OperationType.Query,
+            ReturnType = bookType
+        };
+
+        var tools = sut.Publish([op]);
+
+        tools[0].GraphQLQuery.Should().Contain("title");
+        tools[0].GraphQLQuery.Should().Contain("rating");
+        tools[0].GraphQLQuery.Should().NotContain("internalScore",
+            "glob pattern 'internal*' should exclude internalScore from nested selection set");
+        tools[0].GraphQLQuery.Should().NotContain("internalFlags",
+            "glob pattern 'internal*' should exclude internalFlags from nested selection set");
+    }
 }

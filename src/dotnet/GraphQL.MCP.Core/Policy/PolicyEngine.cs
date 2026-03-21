@@ -147,6 +147,15 @@ public sealed partial class PolicyEngine : IMcpPolicy
     /// <inheritdoc />
     public int GetMaxToolCount() => _options.MaxToolCount;
 
+    /// <inheritdoc />
+    public bool IsFieldExcluded(string fieldName)
+    {
+        if (_excludedFieldPatterns is not null && MatchesAnyPattern(fieldName, _excludedFieldPatterns))
+            return true;
+
+        return false;
+    }
+
     /// <summary>
     /// Filters and transforms a list of operations according to policy.
     /// Returns only the operations that pass all policy checks, up to MaxToolCount.

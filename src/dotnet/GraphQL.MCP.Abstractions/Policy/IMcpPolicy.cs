@@ -29,6 +29,12 @@ public interface IMcpPolicy
     int GetMaxToolCount();
 
     /// <summary>
+    /// Checks whether a field name should be excluded from selection sets.
+    /// This applies ExcludedFields patterns to nested fields, not just root operations.
+    /// </summary>
+    bool IsFieldExcluded(string fieldName);
+
+    /// <summary>
     /// Filters and transforms a list of operations according to policy.
     /// Returns only the operations that pass all policy checks, up to MaxToolCount.
     /// </summary>

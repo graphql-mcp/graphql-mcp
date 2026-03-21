@@ -173,4 +173,81 @@ public class ToolExecutorTests
         act.Should().Throw<InvalidOperationException>()
             .WithMessage("*Duplicate MCP tool name*");
     }
+
+    // --- Regression: int boxing (C# ternary numeric widening) ---
+
+    [Fact]
+    public async Task Should_preserve_int_type_for_integer_arguments()
+    {
+        // Regression: without (object) casts in DeserializeJsonElement,
+        // C# ternary "int : long : double" widens all branches to double,
+        // causing HC IntType.TryDeserialize to fail with
+        // "Int cannot deserialize the given value".
+        var sut = CreateSut();
+        var tool = new McpToolDescriptor
+        {
+            Name = "getBookByYear",
+            Description = "Get book",
+            InputSchema = JsonDocument.Parse("""{"type":"object","properties":{"year":{"type":"integer"}}}"""),
+            GraphQLQuery = "query ($year: Int!) { bookByYear(year: $year) { title } }",
+            OperationType = OperationType.Query,
+            GraphQLFieldName = "bookByYear",
+            ArgumentMapping = new Dictionary<string, string> { ["year"] = "year" }
+        };
+        sut.RegisterTools([tool]);
+
+        GraphQLExecutionRequest? capturedRequest = null;
+        _graphqlExecutor.ExecuteAsync(Arg.Any<GraphQLExecutionRequest>(), Arg.Any<CancellationToken>())
+            .Returns(callInfo =>
+            {
+                capturedRequest = callInfo.ArgAt<GraphQLExecutionRequest>(0);
+                return new GraphQLExecutionResult
+                {
+                    Data = new Dictionary<string, object?> { ["bookByYear"] = new Dictionary<string, object?> { ["title"] = "Dune" } }
+                };
+            });
+
+        var args = JsonDocument.Parse("""{"year": 1965}""").RootElement;
+        await sut.ExecuteAsync("getBookByYear", args);
+
+        capturedRequest.Should().NotBeNull();
+        capturedRequest!.Variables!["year"].Should().BeOfType<int>("integers must stay boxed as int, not widened to double");
+        capturedRequest.Variables["year"].Should().Be(1965);
+    }
+
+    [Fact]
+    public async Task Should_preserve_long_type_for_large_integer_arguments()
+    {
+        var sut = CreateSut();
+        var tool = new McpToolDescriptor
+        {
+            Name = "getByTimestamp",
+            Description = "Get by timestamp",
+            InputSchema = JsonDocument.Parse("""{"type":"object","properties":{"ts":{"type":"integer"}}}"""),
+            GraphQLQuery = "query ($ts: Long!) { byTimestamp(ts: $ts) { id } }",
+            OperationType = OperationType.Query,
+            GraphQLFieldName = "byTimestamp",
+            ArgumentMapping = new Dictionary<string, string> { ["ts"] = "ts" }
+        };
+        sut.RegisterTools([tool]);
+
+        GraphQLExecutionRequest? capturedRequest = null;
+        _graphqlExecutor.ExecuteAsync(Arg.Any<GraphQLExecutionRequest>(), Arg.Any<CancellationToken>())
+            .Returns(callInfo =>
+            {
+                capturedRequest = callInfo.ArgAt<GraphQLExecutionRequest>(0);
+                return new GraphQLExecutionResult
+                {
+                    Data = new Dictionary<string, object?> { ["byTimestamp"] = new Dictionary<string, object?> { ["id"] = "1" } }
+                };
+            });
+
+        // Value exceeds Int32.MaxValue so must be deserialized as long
+        var args = JsonDocument.Parse("""{"ts": 9999999999}""").RootElement;
+        await sut.ExecuteAsync("getByTimestamp", args);
+
+        capturedRequest.Should().NotBeNull();
+        capturedRequest!.Variables!["ts"].Should().BeOfType<long>("large integers must stay boxed as long, not widened to double");
+        capturedRequest.Variables["ts"].Should().Be(9999999999L);
+    }
 }

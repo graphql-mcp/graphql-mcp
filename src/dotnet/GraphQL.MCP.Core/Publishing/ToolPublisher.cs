@@ -334,6 +334,10 @@ public sealed class ToolPublisher
 
                 foreach (var field in inner.Fields)
                 {
+                    // Skip fields excluded by policy (e.g., ExcludedFields: ["internalNotes"])
+                    if (_policy.IsFieldExcluded(field.Name))
+                        continue;
+
                     var innerField = field.Type;
                     while (innerField.Kind is TypeKind.NonNull or TypeKind.List && innerField.OfType is not null)
                     {
