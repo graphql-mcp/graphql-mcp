@@ -1,13 +1,12 @@
 package dev.graphqlmcp.annotation;
 
 import dev.graphqlmcp.autoconfigure.GraphQLMCPAutoConfiguration;
+import java.lang.annotation.*;
 import org.springframework.context.annotation.Import;
 
-import java.lang.annotation.*;
-
 /**
- * Enables graphql-mcp for a Spring Boot application.
- * Apply to your main application class alongside @SpringBootApplication.
+ * Enables graphql-mcp for a Spring Boot application. Apply to your main application class
+ * alongside @SpringBootApplication.
  *
  * <pre>
  * &#064;EnableGraphQLMCP
@@ -23,5 +22,4 @@ import java.lang.annotation.*;
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
 @Import(GraphQLMCPAutoConfiguration.class)
-public @interface EnableGraphQLMCP {
-}
+public @interface EnableGraphQLMCP {}

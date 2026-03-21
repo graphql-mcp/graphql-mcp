@@ -3,10 +3,14 @@ name: Java CI
 on:
   push:
     branches: [main, develop]
-    paths: ['src/java/**']
+    paths:
+      - 'src/java/**'
+      - '.github/workflows/java-ci.yml'
   pull_request:
     branches: [main]
-    paths: ['src/java/**']
+    paths:
+      - 'src/java/**'
+      - '.github/workflows/java-ci.yml'
 
 jobs:
   build-test:
@@ -23,5 +27,23 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      - name: Build and Test
-        run: mvn -f src/java/pom.xml clean verify
+      - name: Restore dependencies
+        run: mvn -B -ntp -f src/java/pom.xml dependency:go-offline
+
+      - name: Check formatting
+        run: mvn -B -ntp -f src/java/pom.xml spotless:check
+
+      - name: Build
+        run: mvn -B -ntp -f src/java/pom.xml -DskipTests package
+
+      - name: Test
+        run: mvn -B -ntp -f src/java/pom.xml test
+
+      - name: Generate coverage report
+        run: mvn -B -ntp -f src/java/pom.xml jacoco:report
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: 'src/java/**/target/site/jacoco/jacoco.xml'
+          fail_ci_if_error: false
