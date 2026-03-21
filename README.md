@@ -8,6 +8,8 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![.NET CI](https://github.com/graphql-mcp/graphql-mcp/actions/workflows/dotnet-ci.yml/badge.svg)](https://github.com/graphql-mcp/graphql-mcp/actions/workflows/dotnet-ci.yml)
 
+> **⚠️ Alpha Release** — This project is feature-complete for the Hot Chocolate adapter but has not yet been validated against a wide range of real-world schemas. The API surface may change based on community feedback. Production use is at your own discretion.
+
 <!-- TODO: Add 30-second demo GIF here -->
 <!-- ![Demo](docs/assets/demo.gif) -->
 
@@ -31,7 +33,7 @@ graphql-mcp turns your existing GraphQL API into an [MCP server](https://modelco
 
 | Framework | Status | Package |
 |-----------|--------|---------|
-| Hot Chocolate (.NET) | ✅ v0.1 | `GraphQL.MCP.HotChocolate` |
+| Hot Chocolate (.NET) | ✅ v0.1-alpha | `GraphQL.MCP.HotChocolate` |
 | graphql-dotnet | 🚧 v0.2 | `GraphQL.MCP.GraphQLDotNet` |
 | Spring GraphQL (Java) | 🚧 v0.3 | `dev.graphql-mcp:graphql-mcp-spring` |
 
@@ -51,7 +53,7 @@ dotnet add package GraphQL.MCP.HotChocolate
 <dependency>
     <groupId>dev.graphql-mcp</groupId>
     <artifactId>graphql-mcp-spring-boot-starter</artifactId>
-    <version>0.1.0</version>
+    <version>0.1.0-SNAPSHOT</version> <!-- Java not yet released -->
 </dependency>
 ```
 
