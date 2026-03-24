@@ -7,6 +7,7 @@
   <ItemGroup>
     <ProjectReference Include="..\GraphQL.MCP.Core\GraphQL.MCP.Core.csproj" />
     <ProjectReference Include="..\GraphQL.MCP.HotChocolate\GraphQL.MCP.HotChocolate.csproj" />
+    <ProjectReference Include="..\GraphQL.MCP.GraphQLDotNet\GraphQL.MCP.GraphQLDotNet.csproj" />
     <ProjectReference Include="..\GraphQL.MCP.AspNetCore\GraphQL.MCP.AspNetCore.csproj" />
   </ItemGroup>
 
