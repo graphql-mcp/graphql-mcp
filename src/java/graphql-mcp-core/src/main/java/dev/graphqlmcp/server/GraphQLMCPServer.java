@@ -1,17 +1,17 @@
 package dev.graphqlmcp.server;
 
-import dev.graphqlmcp.mapping.GraphQLToMCPToolMapper.MCPToolDescriptor;
+import dev.graphqlmcp.publishing.ToolDescriptor;
 import java.util.List;
 
 /**
- * Core MCP server that manages tool registration and invocation. Framework adapters (Spring, etc.)
- * delegate to this class.
+ * Core MCP server that manages tool registration and protocol responses. Framework adapters
+ * (Spring, etc.) delegate to this class.
  */
 public class GraphQLMCPServer {
 
-  private final List<MCPToolDescriptor> tools;
+  private final List<ToolDescriptor> tools;
 
-  public GraphQLMCPServer(List<MCPToolDescriptor> tools) {
+  public GraphQLMCPServer(List<ToolDescriptor> tools) {
     this.tools = List.copyOf(tools);
   }
 
@@ -24,7 +24,7 @@ public class GraphQLMCPServer {
   }
 
   /** Returns all registered tools. */
-  public List<MCPToolDescriptor> listTools() {
+  public List<ToolDescriptor> listTools() {
     return tools;
   }
 
