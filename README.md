@@ -1,14 +1,13 @@
 # graphql-mcp
 
-> **Expose your GraphQL API as MCP capabilities — one line of code.**
-> .NET 10 today, Java Spring next. No proxies. No external processes.
+> **MCP capabilities for every GraphQL server — Hot Chocolate, graphql-dotnet, Spring GraphQL, and more.**
+> Cross-framework curation, policy controls, and AI-friendly capability discovery.
 
-[![NuGet](https://img.shields.io/nuget/v/GraphQL.MCP.HotChocolate?label=NuGet&color=blue)](https://www.nuget.org/packages/GraphQL.MCP.HotChocolate)
+[![NuGet](https://img.shields.io/nuget/v/GraphQL.MCP.HotChocolate?label=HotChocolate&color=blue)](https://www.nuget.org/packages/GraphQL.MCP.HotChocolate)
+[![NuGet](https://img.shields.io/nuget/v/GraphQL.MCP.GraphQLDotNet?label=GraphQLDotNet&color=blue)](https://www.nuget.org/packages/GraphQL.MCP.GraphQLDotNet)
 [![Maven Central](https://img.shields.io/maven-central/v/dev.graphql-mcp/graphql-mcp-spring?label=Maven%20Central)](https://central.sonatype.com/artifact/dev.graphql-mcp/graphql-mcp-spring)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![.NET CI](https://github.com/graphql-mcp/graphql-mcp/actions/workflows/dotnet-ci.yml/badge.svg)](https://github.com/graphql-mcp/graphql-mcp/actions/workflows/dotnet-ci.yml)
-
-> **⚠️ Alpha Release** — This project is feature-complete for the Hot Chocolate adapter but has not yet been validated against a wide range of real-world schemas. The API surface may change based on community feedback. Production use is at your own discretion.
 
 <!-- TODO: Add 30-second demo GIF here -->
 <!-- ![Demo](docs/assets/demo.gif) -->
@@ -17,34 +16,58 @@
 
 ## What is this?
 
-graphql-mcp turns your existing GraphQL API into an [MCP server](https://modelcontextprotocol.io/) that AI clients (Claude, Copilot, Cursor, Windsurf) can use directly. No schema duplication. No sidecar process. Just your GraphQL API, now speaking MCP.
+graphql-mcp is a cross-framework GraphQL AI capability layer. It turns your existing GraphQL API into an [MCP server](https://modelcontextprotocol.io/) that AI clients (Claude, Copilot, Cursor, Windsurf) can use directly — with curation, policy controls, and safety built in.
+
+No schema duplication. No sidecar process. Just your GraphQL API, now speaking MCP.
+
+## Why graphql-mcp?
+
+Some frameworks are adding native MCP support (e.g., Hot Chocolate 16). graphql-mcp goes further:
+
+| | Native framework MCP | graphql-mcp |
+|---|---|---|
+| Cross-framework support | One framework only | Hot Chocolate, graphql-dotnet, Spring (planned) |
+| Curation & policy engine | Varies | Glob-pattern field/type exclusion, mutation blocking, depth limits |
+| AI-friendly naming | Varies | VerbNoun, Raw, PrefixedRaw policies with tool prefixes |
+| Observability | Varies | Built-in OpenTelemetry traces + metrics |
+| Portable core | No | Framework-agnostic engine, adapters are thin |
+
+**Use native MCP when** your framework ships it and it covers your needs.
+**Use graphql-mcp when** you need cross-framework support, advanced curation, or operate across multiple GraphQL backends.
 
 ## Supported AI Clients
 
 | Client | Status |
 |--------|--------|
-| Claude Desktop | ✅ |
-| GitHub Copilot | ✅ |
-| Cursor | ✅ |
-| Windsurf | ✅ |
-| Any MCP-compatible client | ✅ |
+| Claude Desktop | Tested |
+| GitHub Copilot | Compatible |
+| Cursor | Compatible |
+| Windsurf | Compatible |
+| Any MCP-compatible client | Compatible |
 
 ## Supported GraphQL Frameworks
 
 | Framework | Status | Package |
 |-----------|--------|---------|
-| Hot Chocolate (.NET) | ✅ v0.1-alpha | `GraphQL.MCP.HotChocolate` |
-| graphql-dotnet | 🚧 v0.2 | `GraphQL.MCP.GraphQLDotNet` |
-| Spring GraphQL (Java) | 🚧 v0.3 | `dev.graphql-mcp:graphql-mcp-spring` |
+| Hot Chocolate (.NET) | Stable | [`GraphQL.MCP.HotChocolate`](https://www.nuget.org/packages/GraphQL.MCP.HotChocolate) |
+| graphql-dotnet (.NET) | Stable | [`GraphQL.MCP.GraphQLDotNet`](https://www.nuget.org/packages/GraphQL.MCP.GraphQLDotNet) |
+| Spring GraphQL (Java) | Planned | `dev.graphql-mcp:graphql-mcp-spring` |
+| Netflix DGS (Java) | Planned | — |
 
 ---
 
 ## Install
 
-### .NET (Hot Chocolate)
+### Hot Chocolate
 
 ```bash
 dotnet add package GraphQL.MCP.HotChocolate
+```
+
+### graphql-dotnet
+
+```bash
+dotnet add package GraphQL.MCP.GraphQLDotNet
 ```
 
 ### Java (Spring) — coming soon
@@ -61,7 +84,7 @@ dotnet add package GraphQL.MCP.HotChocolate
 
 ## Quick Start
 
-### .NET — Zero Config
+### Hot Chocolate — Zero Config
 
 ```csharp
 using GraphQL.MCP.HotChocolate;
@@ -72,24 +95,45 @@ builder.Services
     .AddGraphQLServer()
     .AddQueryType<Query>();
 
-builder.Services.AddHotChocolateMcp();  // ← one line
+builder.Services.AddHotChocolateMcp();  // one line
 
 var app = builder.Build();
-app.UseGraphQLMcp();                     // ← maps /graphql + /mcp
+app.UseGraphQLMcp();                     // maps /graphql + /mcp
 app.Run();
 ```
 
-### .NET — Full Config
+### graphql-dotnet — Zero Config
 
 ```csharp
-builder.Services.AddHotChocolateMcp(options =>
+using GraphQL.MCP.AspNetCore;
+using GraphQL.MCP.GraphQLDotNet;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddGraphQL(b => b
+    .AddSchema<MySchema>()
+    .AddSystemTextJson());
+
+builder.Services.AddGraphQLDotNetMcp();  // one line
+
+var app = builder.Build();
+app.UseGraphQL("/graphql");
+app.UseGraphQLMcp();                      // maps /mcp
+app.Run();
+```
+
+### Full Config (any adapter)
+
+```csharp
+builder.Services.AddHotChocolateMcp(options =>   // or AddGraphQLDotNetMcp
 {
     options.ToolPrefix = "myapi";
     options.MaxOutputDepth = 3;
     options.NamingPolicy = ToolNamingPolicy.VerbNoun;
 
     options.AllowMutations = false;
-    options.ExcludedFields.Add("internalData");
+    options.ExcludedFields.Add("internalNotes");
+    options.ExcludedTypes.Add("AdminPanel");
 
     options.Authorization.Mode = McpAuthMode.Passthrough;
     options.Transport = McpTransport.StreamableHttp;
@@ -130,14 +174,14 @@ graphql:
 ## How It Works
 
 ```
-GraphQL Schema ──→ Schema Canonicalization ──→ Policy Engine ──→ MCP Tools
-                                                                    │
-AI Client ──→ POST /mcp ──→ Tool Executor ──→ GraphQL Execution ──→ Result
+GraphQL Schema --> Schema Canonicalization --> Policy Engine --> MCP Tools
+                                                                    |
+AI Client --> POST /mcp --> Tool Executor --> GraphQL Execution --> Result
 ```
 
 1. **Introspects** your GraphQL schema at startup
 2. **Canonicalizes** operations into a framework-agnostic model
-3. **Applies policies** — exclusions, naming, depth limits, mutation safety
+3. **Applies policies** — field/type exclusions, naming, depth limits, mutation safety
 4. **Publishes tools** as MCP tool descriptors with JSON Schema inputs
 5. **Executes** GraphQL queries when AI clients invoke tools
 
@@ -149,11 +193,12 @@ AI Client ──→ POST /mcp ──→ Tool Executor ──→ GraphQL Executio
 | Max output depth | **3 levels** |
 | Max tool count | **50** |
 | Auth forwarded | **No** — opt-in passthrough |
-| Sensitive fields | **You configure** `ExcludedFields` |
+| Sensitive fields | **You configure** `ExcludedFields` with glob patterns |
+| Selection set exclusion | **Yes** — excluded fields filtered from nested types too |
 
 ## Observability
 
-Built-in OpenTelemetry support from v0.1:
+Built-in OpenTelemetry support:
 
 ```csharp
 builder.Services.AddOpenTelemetry()
@@ -168,19 +213,40 @@ Metrics: `mcp.tool.invocations`, `mcp.tool.errors`, `mcp.tool.duration`
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────┐
-│  GraphQL.MCP.Abstractions                   │  ← Contracts (zero deps)
-├─────────────────────────────────────────────┤
-│  GraphQL.MCP.Core                           │  ← Engine (canonicalize, policy, publish, execute)
-├─────────────────────────────────────────────┤
-│  GraphQL.MCP.AspNetCore                     │  ← HTTP transport (Streamable HTTP)
-├──────────────────────┬──────────────────────┤
-│  GraphQL.MCP.        │  GraphQL.MCP.        │
-│  HotChocolate        │  GraphQLDotNet       │  ← Framework adapters
-└──────────────────────┴──────────────────────┘
++---------------------------------------------+
+|  GraphQL.MCP.Abstractions                   |  Contracts (zero deps)
++---------------------------------------------+
+|  GraphQL.MCP.Core                           |  Engine (canonicalize, policy, publish, execute)
++---------------------------------------------+
+|  GraphQL.MCP.AspNetCore                     |  HTTP transport (Streamable HTTP)
++----------------------+----------------------+
+|  GraphQL.MCP.        |  GraphQL.MCP.        |
+|  HotChocolate        |  GraphQLDotNet       |  Framework adapters
++----------------------+----------------------+
 ```
 
+The core engine is fully framework-agnostic. Adding a new framework adapter means implementing two interfaces: `IGraphQLSchemaSource` and `IGraphQLExecutor`.
+
 See [docs/architecture.md](docs/architecture.md) for the full design.
+
+---
+
+## Claude Desktop Setup
+
+Start your GraphQL MCP server, then add to `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "my-graphql-api": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "http://localhost:5000/mcp"]
+    }
+  }
+}
+```
+
+Restart Claude Desktop. Your GraphQL operations will appear as tools.
 
 ---
 
@@ -200,19 +266,20 @@ See [docs/architecture.md](docs/architecture.md) for the full design.
 
 ## Roadmap
 
-- [x] .NET Core engine
+- [x] .NET Core engine (framework-agnostic)
 - [x] Hot Chocolate adapter
+- [x] graphql-dotnet adapter
 - [x] Streamable HTTP transport
-- [x] Policy engine (exclusions, naming, depth)
+- [x] Policy engine (field/type exclusion with globs, naming, depth, mutation blocking)
+- [x] Selection set field exclusion (nested types)
 - [x] OpenTelemetry instrumentation
-- [ ] graphql-dotnet adapter
 - [ ] Spring GraphQL starter
 - [ ] MCP Resources (schema summary, type docs)
 - [ ] MCP Prompts (curated exploration templates)
+- [ ] AI-friendly discovery (tags, domain grouping, semantic hints)
 - [ ] OAuth 2.1 metadata support
 - [ ] stdio transport
 - [ ] Netflix DGS adapter
-- [ ] MCP Registry listing
 
 ---
 

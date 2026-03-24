@@ -43,8 +43,10 @@ jobs:
         run: |
           dotnet restore examples/dotnet-hotchocolate-minimal/
           dotnet restore examples/dotnet-hotchocolate-secure/
+          dotnet restore examples/dotnet-graphqldotnet-minimal/
           dotnet build examples/dotnet-hotchocolate-minimal/ --no-restore -c Release
           dotnet build examples/dotnet-hotchocolate-secure/ --no-restore -c Release
+          dotnet build examples/dotnet-graphqldotnet-minimal/ --no-restore -c Release
 
       - name: Upload coverage
         uses: codecov/codecov-action@v5
