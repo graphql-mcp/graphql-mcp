@@ -5,11 +5,13 @@ on:
     branches: [main, develop]
     paths:
       - 'src/java/**'
+      - 'examples/java-spring-minimal/**'
       - '.github/workflows/java-ci.yml'
   pull_request:
     branches: [main]
     paths:
       - 'src/java/**'
+      - 'examples/java-spring-minimal/**'
       - '.github/workflows/java-ci.yml'
 
 jobs:
@@ -33,14 +35,17 @@ jobs:
       - name: Check formatting
         run: mvn -B -ntp -f src/java/pom.xml spotless:check
 
-      - name: Build
-        run: mvn -B -ntp -f src/java/pom.xml -DskipTests package
+      - name: Build and install reactor artifacts
+        run: mvn -B -ntp -f src/java/pom.xml -DskipTests install
 
       - name: Test
         run: mvn -B -ntp -f src/java/pom.xml test
 
       - name: Generate coverage report
         run: mvn -B -ntp -f src/java/pom.xml jacoco:report
+
+      - name: Smoke build Java example
+        run: mvn -B -ntp -f examples/java-spring-minimal/pom.xml -DskipTests package
 
       - name: Upload coverage
         uses: codecov/codecov-action@v5

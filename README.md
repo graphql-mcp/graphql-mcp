@@ -26,7 +26,7 @@ Some frameworks are adding native MCP support (e.g., Hot Chocolate 16). graphql-
 
 | | Native framework MCP | graphql-mcp |
 |---|---|---|
-| Cross-framework support | One framework only | Hot Chocolate, graphql-dotnet, Spring (planned) |
+| Cross-framework support | One framework only | Hot Chocolate, graphql-dotnet, Spring (local preview) |
 | Curation & policy engine | Varies | Glob-pattern field/type exclusion, mutation blocking, depth limits |
 | AI-friendly naming | Varies | VerbNoun, Raw, PrefixedRaw policies with tool prefixes |
 | Observability | Varies | Built-in OpenTelemetry traces + metrics |
@@ -51,7 +51,7 @@ Some frameworks are adding native MCP support (e.g., Hot Chocolate 16). graphql-
 |-----------|--------|---------|
 | Hot Chocolate (.NET) | Stable | [`GraphQL.MCP.HotChocolate`](https://www.nuget.org/packages/GraphQL.MCP.HotChocolate) |
 | graphql-dotnet (.NET) | Stable | [`GraphQL.MCP.GraphQLDotNet`](https://www.nuget.org/packages/GraphQL.MCP.GraphQLDotNet) |
-| Spring GraphQL (Java) | Planned | `dev.graphql-mcp:graphql-mcp-spring` |
+| Spring GraphQL (Java) | In progress, local preview | `dev.graphql-mcp:graphql-mcp-spring` |
 | Netflix DGS (Java) | Planned | — |
 
 ---
@@ -70,13 +70,13 @@ dotnet add package GraphQL.MCP.HotChocolate
 dotnet add package GraphQL.MCP.GraphQLDotNet
 ```
 
-### Java (Spring) — coming soon
+### Java (Spring) — local preview
 
 ```xml
 <dependency>
     <groupId>dev.graphql-mcp</groupId>
     <artifactId>graphql-mcp-spring-boot-starter</artifactId>
-    <version>0.1.0-SNAPSHOT</version> <!-- Java not yet released -->
+    <version>0.1.0-SNAPSHOT</version> <!-- Java is implemented locally but not yet released -->
 </dependency>
 ```
 
@@ -256,6 +256,8 @@ Restart Claude Desktop. Your GraphQL operations will appear as tools.
 |-------|------|
 | Getting Started (.NET) | [docs/dotnet/getting-started.md](docs/dotnet/getting-started.md) |
 | Configuration | [docs/dotnet/configuration.md](docs/dotnet/configuration.md) |
+| Getting Started (Java) | [docs/java/getting-started.md](docs/java/getting-started.md) |
+| Configuration (Java) | [docs/java/configuration.md](docs/java/configuration.md) |
 | How Mapping Works | [docs/mapping.md](docs/mapping.md) |
 | Security Model | [docs/security.md](docs/security.md) |
 | Transports | [docs/transports.md](docs/transports.md) |
@@ -273,7 +275,7 @@ Restart Claude Desktop. Your GraphQL operations will appear as tools.
 - [x] Policy engine (field/type exclusion with globs, naming, depth, mutation blocking)
 - [x] Selection set field exclusion (nested types)
 - [x] OpenTelemetry instrumentation
-- [ ] Spring GraphQL starter
+- [ ] Spring GraphQL starter (in progress, local preview only)
 - [ ] MCP Resources (schema summary, type docs)
 - [ ] MCP Prompts (curated exploration templates)
 - [ ] AI-friendly discovery (tags, domain grouping, semantic hints)
