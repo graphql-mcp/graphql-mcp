@@ -20,6 +20,15 @@
         </license>
     </licenses>
 
+    <developers>
+        <developer>
+            <name>Aniket Joshi</name>
+            <email>joshi.aniket@proton.me</email>
+            <organization>graphql-mcp</organization>
+            <organizationUrl>https://github.com/graphql-mcp</organizationUrl>
+        </developer>
+    </developers>
+
     <scm>
         <connection>scm:git:git://github.com/graphql-mcp/graphql-mcp.git</connection>
         <developerConnection>scm:git:ssh://github.com:graphql-mcp/graphql-mcp.git</developerConnection>
@@ -117,6 +126,17 @@
             <id>release</id>
             <build>
                 <plugins>
+                    <plugin>
+                        <groupId>org.sonatype.central</groupId>
+                        <artifactId>central-publishing-maven-plugin</artifactId>
+                        <version>0.9.0</version>
+                        <extensions>true</extensions>
+                        <configuration>
+                            <publishingServerId>central</publishingServerId>
+                            <autoPublish>true</autoPublish>
+                            <waitUntil>published</waitUntil>
+                        </configuration>
+                    </plugin>
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-gpg-plugin</artifactId>
