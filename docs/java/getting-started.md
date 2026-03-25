@@ -66,12 +66,12 @@ Until the Java packages are published, the example resolves local snapshot artif
 <dependency>
     <groupId>dev.graphql-mcp</groupId>
     <artifactId>graphql-mcp-spring-boot-starter</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
+    <version>0.1.0-alpha.1</version>
 </dependency>
 <dependency>
     <groupId>dev.graphql-mcp</groupId>
     <artifactId>graphql-mcp-web</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
+    <version>0.1.0-alpha.1</version>
 </dependency>
 ```
 
