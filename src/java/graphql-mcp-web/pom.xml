@@ -7,7 +7,7 @@
     <parent>
         <groupId>dev.graphql-mcp</groupId>
         <artifactId>graphql-mcp-parent</artifactId>
-        <version>0.1.0-SNAPSHOT</version>
+        <version>0.1.0-alpha.1</version>
     </parent>
 
     <artifactId>graphql-mcp-web</artifactId>

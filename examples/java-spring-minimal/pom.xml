@@ -13,7 +13,7 @@
 
     <groupId>dev.graphql-mcp.examples</groupId>
     <artifactId>java-spring-minimal</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
+    <version>0.1.0-alpha.1</version>
     <name>java-spring-minimal</name>
     <description>Minimal Spring GraphQL + graphql-mcp example</description>
 
@@ -33,12 +33,12 @@
         <dependency>
             <groupId>dev.graphql-mcp</groupId>
             <artifactId>graphql-mcp-spring-boot-starter</artifactId>
-            <version>0.1.0-SNAPSHOT</version>
+            <version>0.1.0-alpha.1</version>
         </dependency>
         <dependency>
             <groupId>dev.graphql-mcp</groupId>
             <artifactId>graphql-mcp-web</artifactId>
-            <version>0.1.0-SNAPSHOT</version>
+            <version>0.1.0-alpha.1</version>
         </dependency>
     </dependencies>
 

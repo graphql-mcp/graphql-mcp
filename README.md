@@ -76,7 +76,7 @@ dotnet add package GraphQL.MCP.GraphQLDotNet
 <dependency>
     <groupId>dev.graphql-mcp</groupId>
     <artifactId>graphql-mcp-spring-boot-starter</artifactId>
-    <version>0.1.0-SNAPSHOT</version> <!-- Java is implemented locally but not yet released -->
+    <version>0.1.0-alpha.1</version> <!-- Java is implemented locally but not yet released -->
 </dependency>
 ```
 
