@@ -91,7 +91,9 @@ public class McpController {
     return ResponseEntity.ok().build();
   }
 
-  @GetMapping(path = {"/catalog", "/capabilities"}, produces = MediaType.APPLICATION_JSON_VALUE)
+  @GetMapping(
+      path = {"/catalog", "/capabilities"},
+      produces = MediaType.APPLICATION_JSON_VALUE)
   public ResponseEntity<ObjectNode> handleCatalog() {
     return ResponseEntity.ok(buildCatalogResult());
   }

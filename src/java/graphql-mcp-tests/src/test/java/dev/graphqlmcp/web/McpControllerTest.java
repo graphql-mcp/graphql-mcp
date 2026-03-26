@@ -2,8 +2,8 @@ package dev.graphqlmcp.web;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import dev.graphqlmcp.TestSchemas;
 import dev.graphqlmcp.execution.GraphQLExecutor;

@@ -315,16 +315,6 @@ public class ToolPublisher {
 
   private static final Set<String> VERB_PREFIXES =
       Set.of(
-          "get",
-          "list",
-          "fetch",
-          "find",
-          "search",
-          "create",
-          "update",
-          "delete",
-          "remove",
-          "add",
-          "set",
-          "count");
+          "get", "list", "fetch", "find", "search", "create", "update", "delete", "remove", "add",
+          "set", "count");
 }
