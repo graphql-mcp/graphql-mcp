@@ -154,7 +154,8 @@ public sealed class StreamableHttpTransport
             {
                 domain = t.Domain,
                 category = t.Category,
-                tags = t.Tags
+                tags = t.Tags,
+                semanticHints = t.SemanticHints
             },
             inputSchema = JsonSerializer.Deserialize<object>(
                 t.InputSchema.RootElement.GetRawText(), JsonOptions)
@@ -184,11 +185,30 @@ public sealed class StreamableHttpTransport
                     .OrderBy(tag => tag, StringComparer.Ordinal)
                     .ToArray();
 
+                var semanticKeywords = group
+                    .SelectMany(t => t.SemanticHints.Keywords)
+                    .Where(keyword => !string.IsNullOrWhiteSpace(keyword))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(keyword => keyword, StringComparer.Ordinal)
+                    .ToArray();
+
+                var semanticIntents = group
+                    .Select(t => t.SemanticHints.Intent)
+                    .Where(intent => !string.IsNullOrWhiteSpace(intent))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(intent => intent, StringComparer.Ordinal)
+                    .ToArray();
+
                 return new
                 {
                     domain = group.Key,
                     categories,
                     tags,
+                    semanticHints = new
+                    {
+                        intents = semanticIntents,
+                        keywords = semanticKeywords
+                    },
                     toolCount = group.Count(),
                     toolNames = group.Select(t => t.Name).OrderBy(name => name, StringComparer.Ordinal).ToArray(),
                     tools = group
@@ -200,7 +220,8 @@ public sealed class StreamableHttpTransport
                             category = t.Category,
                             operationType = t.OperationType.ToString().ToLowerInvariant(),
                             fieldName = t.GraphQLFieldName,
-                            tags = t.Tags
+                            tags = t.Tags,
+                            semanticHints = t.SemanticHints
                         })
                         .ToArray()
                 };

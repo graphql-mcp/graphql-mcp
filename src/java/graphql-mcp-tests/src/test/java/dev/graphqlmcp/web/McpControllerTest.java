@@ -56,6 +56,15 @@ class McpControllerTest {
     assertEquals("api_get_hello", firstTool.path("name").asText());
     assertEquals("Query", firstTool.path("annotations").path("category").asText());
     assertEquals("hello", firstTool.path("annotations").path("domain").asText());
+    assertEquals(
+        "retrieve", firstTool.path("annotations").path("semanticHints").path("intent").asText());
+    assertTrue(
+        firstTool
+            .path("annotations")
+            .path("semanticHints")
+            .path("keywords")
+            .toString()
+            .contains("hello"));
   }
 
   @Test
@@ -76,6 +85,8 @@ class McpControllerTest {
     assertEquals("api_get_book", bookDomain.path("tools").get(0).path("name").asText());
     assertEquals("book", bookDomain.path("domain").asText());
     assertTrue(bookDomain.path("tools").get(0).path("tags").toString().contains("book"));
+    assertTrue(bookDomain.path("semanticHints").path("intents").toString().contains("retrieve"));
+    assertTrue(bookDomain.path("semanticHints").path("keywords").toString().contains("book"));
   }
 
   @Test
@@ -140,7 +151,8 @@ class McpControllerTest {
             "book",
             OperationType.QUERY,
             Map.of("id", "id"),
-            "book");
+            "book",
+            new ToolDescriptor.SemanticHints("retrieve", List.of("book", "query", "id")));
     ToolDescriptor tool =
         new ToolDescriptor(
             "api_get_hello",
@@ -152,7 +164,8 @@ class McpControllerTest {
             "hello",
             OperationType.QUERY,
             Map.of("clientName", "name"),
-            "hello");
+            "hello",
+            new ToolDescriptor.SemanticHints("retrieve", List.of("hello", "query", "name")));
 
     GraphQLExecutor executor = new GraphQLExecutor(TestSchemas.createExecutionSchema());
     ToolExecutor toolExecutor = new ToolExecutor(executor, List.of(tool, bookTool));

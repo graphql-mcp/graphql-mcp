@@ -145,6 +145,25 @@ public class StreamableHttpTransportTests
     }
 
     [Fact]
+    public async Task Tools_list_should_include_semantic_hints()
+    {
+        using var host = await CreateTestHost();
+        using var client = host.GetTestClient();
+        var sessionId = await InitializeSessionAsync(client);
+
+        var response = await SendMcpRequest(client, "tools/list", null, sessionId);
+        var json = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+        var annotations = json.RootElement.GetProperty("result").GetProperty("tools")[0]
+            .GetProperty("annotations");
+
+        annotations.GetProperty("semanticHints").GetProperty("intent").GetString()
+            .Should().Be("retrieve");
+        annotations.GetProperty("semanticHints").GetProperty("keywords").EnumerateArray()
+            .Select(element => element.GetString())
+            .Should().Contain(["query", "order"]);
+    }
+
+    [Fact]
     public async Task Catalog_list_should_group_tools_by_domain()
     {
         using var host = await CreateTestHost();
@@ -170,6 +189,28 @@ public class StreamableHttpTransportTests
         firstDomain.GetProperty("toolNames").EnumerateArray()
             .Select(element => element.GetString())
             .Should().Contain(["get_order"]);
+    }
+
+    [Fact]
+    public async Task Catalog_list_should_include_semantic_hints()
+    {
+        using var host = await CreateTestHost();
+        using var client = host.GetTestClient();
+        var sessionId = await InitializeSessionAsync(client);
+
+        var response = await SendMcpRequest(client, "catalog/list", null, sessionId);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var json = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+        var firstDomain = json.RootElement.GetProperty("result").GetProperty("domains")[0];
+
+        firstDomain.GetProperty("semanticHints").GetProperty("intents").EnumerateArray()
+            .Select(element => element.GetString())
+            .Should().Contain("retrieve");
+        firstDomain.GetProperty("semanticHints").GetProperty("keywords").EnumerateArray()
+            .Select(element => element.GetString())
+            .Should().Contain("order");
     }
 
     [Fact]

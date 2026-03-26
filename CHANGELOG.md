@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `MaxArgumentCount` / `graphql.mcp.max-argument-count` policy option
 - basic discovery metadata on published tools via category/tag annotations
 - grouped discovery metadata via explicit tool domains and `catalog/list` capability catalogs
+- semantic discovery hints on published tools via `semanticHints.intent` and `semanticHints.keywords`
+- stronger discovery heuristics for domain inference, singularization, and structural suffix stripping
 - dedicated docs for policies, adapters, and roadmap
 ### Fixed
 - ISchema DI resolution crash - Hot Chocolate adapter now uses `IRequestExecutorResolver` instead of `ISchema` (not registered in HC DI container)

@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.*;
 import dev.graphqlmcp.TestSchemas;
 import dev.graphqlmcp.introspection.GraphQLSchemaIntrospector;
 import dev.graphqlmcp.mapping.GraphQLToMCPToolMapper;
+import graphql.Scalars;
+import graphql.schema.GraphQLObjectType;
 import graphql.schema.GraphQLSchema;
 import java.util.List;
 import java.util.Map;
@@ -54,6 +56,11 @@ class ToolPublisherTest {
     assertEquals("Query", book.category());
     assertTrue(book.tags().contains("query"));
     assertTrue(book.tags().contains("book"));
+    assertNotNull(book.semanticHints());
+    assertEquals("retrieve", book.semanticHints().intent());
+    assertTrue(book.semanticHints().keywords().contains("book"));
+    assertTrue(book.semanticHints().keywords().contains("query"));
+    assertTrue(book.semanticHints().keywords().contains("id"));
   }
 
   @Test
@@ -80,6 +87,37 @@ class ToolPublisherTest {
             .graphQLQuery()
             .startsWith("mutation($title: String!) { createBook(title: $title)"));
     assertEquals("book", mutation.domainGroup());
+    assertEquals("create", mutation.semanticHints().intent());
+    assertTrue(mutation.semanticHints().keywords().contains("book"));
+    assertTrue(mutation.semanticHints().keywords().contains("title"));
+  }
+
+  @Test
+  void infers_singular_domain_names_from_structured_field_names() {
+    GraphQLObjectType queryType =
+        GraphQLObjectType.newObject()
+            .name("Query")
+            .field(
+                field ->
+                    field
+                        .name("apiUsersConnection")
+                        .description("List API users")
+                        .type(Scalars.GraphQLString))
+            .build();
+    GraphQLSchema schema = GraphQLSchema.newSchema().query(queryType).build();
+    GraphQLSchemaIntrospector introspector = new GraphQLSchemaIntrospector();
+    GraphQLToMCPToolMapper mapper =
+        new GraphQLToMCPToolMapper(
+            new GraphQLToMCPToolMapper.GraphQLMCPConfig(
+                null, GraphQLToMCPToolMapper.NamingPolicy.RAW, false, Set.of(), 3, 10, false, 25));
+    ToolPublisher publisher = new ToolPublisher(mapper, mapperConfig());
+
+    ToolDescriptor tool = publisher.publish(introspector.introspect(schema), schema).get(0);
+
+    assertEquals("user", tool.domainGroup());
+    assertEquals("list", tool.semanticHints().intent());
+    assertTrue(tool.semanticHints().keywords().contains("api"));
+    assertTrue(tool.semanticHints().keywords().contains("user"));
   }
 
   private static GraphQLToMCPToolMapper.GraphQLMCPConfig mapperConfig() {
