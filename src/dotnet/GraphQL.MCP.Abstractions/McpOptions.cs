@@ -21,6 +21,12 @@ public sealed class McpOptions
     public int MaxToolCount { get; set; } = 50;
 
     /// <summary>
+    /// Maximum number of arguments allowed on a published operation. Default: 25.
+    /// Operations with more arguments are skipped to avoid overly complex tools.
+    /// </summary>
+    public int MaxArgumentCount { get; set; } = 25;
+
+    /// <summary>
     /// Naming policy for generated tool names.
     /// </summary>
     public ToolNamingPolicy NamingPolicy { get; set; } = ToolNamingPolicy.VerbNoun;
@@ -34,6 +40,12 @@ public sealed class McpOptions
     /// Whether to include GraphQL descriptions in tool descriptors.
     /// </summary>
     public bool IncludeDescriptions { get; set; } = true;
+
+    /// <summary>
+    /// Whether operations without descriptions should be skipped entirely.
+    /// Default: false.
+    /// </summary>
+    public bool RequireDescriptionsForPublishedTools { get; set; }
 
     /// <summary>
     /// GraphQL field names to exclude from tool generation.

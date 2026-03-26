@@ -23,8 +23,10 @@ class GraphQLMCPAutoConfigurationTest {
               "graphql.mcp.naming-policy=verb-noun",
               "graphql.mcp.allow-mutations=false",
               "graphql.mcp.excluded-fields[0]=secretNote",
+              "graphql.mcp.require-descriptions=true",
               "graphql.mcp.max-output-depth=3",
-              "graphql.mcp.max-tool-count=10");
+              "graphql.mcp.max-tool-count=10",
+              "graphql.mcp.max-argument-count=5");
 
   @Test
   void binds_properties_and_publishes_tools_from_schema() {
@@ -39,6 +41,8 @@ class GraphQLMCPAutoConfigurationTest {
           assertEquals("api", properties.getToolPrefix());
           assertFalse(properties.isAllowMutations());
           assertEquals(1, properties.getExcludedFields().size());
+          assertTrue(properties.isRequireDescriptions());
+          assertEquals(5, properties.getMaxArgumentCount());
 
           GraphQLMCPServer server = context.getBean(GraphQLMCPServer.class);
           assertEquals(2, server.listTools().size());

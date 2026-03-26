@@ -19,6 +19,16 @@ public sealed class McpToolDescriptor
     public string? Description { get; init; }
 
     /// <summary>
+    /// Optional high-level category inferred from the GraphQL operation shape.
+    /// </summary>
+    public string? Category { get; init; }
+
+    /// <summary>
+    /// Optional discovery tags that help clients group related tools.
+    /// </summary>
+    public IReadOnlyList<string> Tags { get; init; } = [];
+
+    /// <summary>
     /// JSON Schema describing the tool's input parameters.
     /// </summary>
     public required JsonDocument InputSchema { get; init; }

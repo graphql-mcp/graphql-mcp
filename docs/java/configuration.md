@@ -2,7 +2,7 @@
 
 ## Status
 
-The Java configuration surface is available as a preview release on Maven Central.
+The Java configuration surface is available as an alpha-preview release on Maven Central.
 
 ## application.yml
 
@@ -13,11 +13,13 @@ graphql:
     tool-prefix: myapi
     naming-policy: verb-noun
     allow-mutations: false
+    require-descriptions: false
     excluded-fields:
       - internalData
       - secretNote
     max-output-depth: 3
     max-tool-count: 50
+    max-argument-count: 25
     transport: streamable-http
     authorization:
       mode: passthrough
@@ -33,9 +35,11 @@ These properties are currently bound by [GraphQLMCPProperties.java](/C:/Users/in
 | `graphql.mcp.tool-prefix` | `string` | `null` | Prefix for published MCP tool names |
 | `graphql.mcp.naming-policy` | `string` | `verb-noun` | Naming style for generated tools |
 | `graphql.mcp.allow-mutations` | `boolean` | `false` | Publishes mutation tools when enabled |
+| `graphql.mcp.require-descriptions` | `boolean` | `false` | Skips operations that do not have descriptions |
 | `graphql.mcp.excluded-fields` | `list<string>` | `[]` | Field names to exclude from publication and selection sets |
 | `graphql.mcp.max-output-depth` | `int` | `3` | Max nested selection depth in generated GraphQL queries |
 | `graphql.mcp.max-tool-count` | `int` | `50` | Max number of tools published |
+| `graphql.mcp.max-argument-count` | `int` | `25` | Max argument count allowed for a published tool |
 | `graphql.mcp.transport` | `string` | `streamable-http` | Transport mode; only Streamable HTTP is currently implemented |
 | `graphql.mcp.authorization.mode` | `string` | `none` | Authorization mode; `passthrough` forwards the incoming `Authorization` header |
 
@@ -94,7 +98,7 @@ Requests without a valid session header are rejected.
 - OAuth 2.1 metadata support
 - Java resources/prompts support
 - stdio transport
-- advanced discovery metadata such as tags and domain grouping
+- advanced discovery metadata beyond the current category/tag annotations
 
 ## Related Docs
 

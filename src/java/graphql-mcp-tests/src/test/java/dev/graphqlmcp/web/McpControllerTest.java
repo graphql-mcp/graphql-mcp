@@ -51,9 +51,10 @@ class McpControllerTest {
 
     assertEquals(HttpStatus.OK, listResponse.getStatusCode());
     assertEquals(1, listResponse.getBody().path("result").path("tools").size());
-    assertEquals(
-        "api_get_hello",
-        listResponse.getBody().path("result").path("tools").get(0).path("name").asText());
+    var firstTool = listResponse.getBody().path("result").path("tools").get(0);
+    assertEquals("api_get_hello", firstTool.path("name").asText());
+    assertEquals("Query", firstTool.path("annotations").path("category").asText());
+    assertEquals("query", firstTool.path("annotations").path("tags").get(0).asText());
   }
 
   @Test
@@ -94,6 +95,8 @@ class McpControllerTest {
         new ToolDescriptor(
             "api_get_hello",
             "Return a greeting",
+            "Query",
+            List.of("query"),
             Map.of("type", "object"),
             "query($name: String!) { hello(name: $name) }",
             "hello",

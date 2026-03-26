@@ -3,7 +3,7 @@
 ## Prerequisites
 
 - .NET 10 SDK
-- A Hot Chocolate GraphQL API (or graphql-dotnet, coming in v0.2)
+- A Hot Chocolate GraphQL API
 
 ## Install
 
@@ -57,7 +57,7 @@ dotnet run
 
 Test the MCP endpoint:
 ```bash
-# Initialize
+# Initialize and capture the Mcp-Session-Id response header
 curl -X POST http://localhost:5000/mcp \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":1,"method":"initialize"}'
@@ -65,11 +65,13 @@ curl -X POST http://localhost:5000/mcp \
 # List tools
 curl -X POST http://localhost:5000/mcp \
   -H "Content-Type: application/json" \
+  -H "Mcp-Session-Id: <session-id>" \
   -d '{"jsonrpc":"2.0","id":2,"method":"tools/list"}'
 
 # Call a tool
 curl -X POST http://localhost:5000/mcp \
   -H "Content-Type: application/json" \
+  -H "Mcp-Session-Id: <session-id>" \
   -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"get_hello","arguments":{"name":"Claude"}}}'
 ```
 

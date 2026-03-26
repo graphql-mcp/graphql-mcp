@@ -17,6 +17,8 @@ on:
 jobs:
   build-test:
     runs-on: ubuntu-latest
+    env:
+      MAVEN_REPO_LOCAL: ${{ github.workspace }}/.m2-ci
     strategy:
       matrix:
         java-version: ['21']
@@ -30,22 +32,22 @@ jobs:
           cache: maven
 
       - name: Restore dependencies
-        run: mvn -B -ntp -f src/java/pom.xml dependency:go-offline
+        run: mvn -B -ntp -Dmaven.repo.local="${{ env.MAVEN_REPO_LOCAL }}" -f src/java/pom.xml dependency:go-offline
 
       - name: Check formatting
-        run: mvn -B -ntp -f src/java/pom.xml spotless:check
+        run: mvn -B -ntp -Dmaven.repo.local="${{ env.MAVEN_REPO_LOCAL }}" -f src/java/pom.xml spotless:check
 
       - name: Build and install reactor artifacts
-        run: mvn -B -ntp -f src/java/pom.xml -DskipTests install
+        run: mvn -B -ntp -Dmaven.repo.local="${{ env.MAVEN_REPO_LOCAL }}" -f src/java/pom.xml -DskipTests install
 
       - name: Test
-        run: mvn -B -ntp -f src/java/pom.xml test
+        run: mvn -B -ntp -Dmaven.repo.local="${{ env.MAVEN_REPO_LOCAL }}" -f src/java/pom.xml test
 
       - name: Generate coverage report
-        run: mvn -B -ntp -f src/java/pom.xml jacoco:report
+        run: mvn -B -ntp -Dmaven.repo.local="${{ env.MAVEN_REPO_LOCAL }}" -f src/java/pom.xml jacoco:report
 
       - name: Smoke build Java example
-        run: mvn -B -ntp -f examples/java-spring-minimal/pom.xml -DskipTests package
+        run: mvn -B -ntp -Dmaven.repo.local="${{ env.MAVEN_REPO_LOCAL }}" -f examples/java-spring-minimal/pom.xml -DskipTests package
 
       - name: Upload coverage
         uses: codecov/codecov-action@v5

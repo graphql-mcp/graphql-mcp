@@ -124,6 +124,10 @@ public class McpController {
       ObjectNode toolNode = MAPPER.createObjectNode();
       toolNode.put("name", tool.name());
       toolNode.put("description", tool.description());
+      ObjectNode annotations = MAPPER.createObjectNode();
+      annotations.put("category", tool.category());
+      annotations.set("tags", MAPPER.valueToTree(tool.tags()));
+      toolNode.set("annotations", annotations);
       toolNode.set("inputSchema", MAPPER.valueToTree(tool.inputSchema()));
       toolsArray.add(toolNode);
     }

@@ -46,6 +46,8 @@ public class ToolPublisher {
           new ToolDescriptor(
               mcpTool.name(),
               mcpTool.description(),
+              mcpTool.category(),
+              mcpTool.tags(),
               inputSchema,
               graphQLQuery,
               mcpTool.graphQLFieldName(),

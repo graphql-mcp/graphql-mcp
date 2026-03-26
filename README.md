@@ -49,10 +49,10 @@ Some frameworks are adding native MCP support (e.g., Hot Chocolate 16). graphql-
 
 | Framework | Status | Package |
 |-----------|--------|---------|
-| Hot Chocolate (.NET) | Stable | [`GraphQL.MCP.HotChocolate`](https://www.nuget.org/packages/GraphQL.MCP.HotChocolate) |
-| graphql-dotnet (.NET) | Stable | [`GraphQL.MCP.GraphQLDotNet`](https://www.nuget.org/packages/GraphQL.MCP.GraphQLDotNet) |
-| Spring GraphQL (Java) | Preview | [`dev.graphql-mcp:graphql-mcp-spring-boot-starter`](https://central.sonatype.com/artifact/dev.graphql-mcp/graphql-mcp-spring-boot-starter) |
-| Netflix DGS (Java) | Planned | — |
+| Hot Chocolate (.NET) | Alpha | [`GraphQL.MCP.HotChocolate`](https://www.nuget.org/packages/GraphQL.MCP.HotChocolate) |
+| graphql-dotnet (.NET) | Alpha | [`GraphQL.MCP.GraphQLDotNet`](https://www.nuget.org/packages/GraphQL.MCP.GraphQLDotNet) |
+| Spring GraphQL (Java) | Alpha Preview | [`dev.graphql-mcp:graphql-mcp-spring-boot-starter`](https://central.sonatype.com/artifact/dev.graphql-mcp/graphql-mcp-spring-boot-starter) |
+| Netflix DGS (Java) | Planned | - |
 
 ---
 
@@ -255,9 +255,12 @@ Restart Claude Desktop. Your GraphQL operations will appear as tools.
 | Topic | Link |
 |-------|------|
 | Getting Started (.NET) | [docs/dotnet/getting-started.md](docs/dotnet/getting-started.md) |
-| Configuration | [docs/dotnet/configuration.md](docs/dotnet/configuration.md) |
+| Configuration (.NET) | [docs/dotnet/configuration.md](docs/dotnet/configuration.md) |
 | Getting Started (Java) | [docs/java/getting-started.md](docs/java/getting-started.md) |
 | Configuration (Java) | [docs/java/configuration.md](docs/java/configuration.md) |
+| Policies | [docs/policies.md](docs/policies.md) |
+| Adapters | [docs/adapters.md](docs/adapters.md) |
+| Roadmap | [docs/roadmap.md](docs/roadmap.md) |
 | How Mapping Works | [docs/mapping.md](docs/mapping.md) |
 | Security Model | [docs/security.md](docs/security.md) |
 | Transports | [docs/transports.md](docs/transports.md) |
@@ -278,7 +281,7 @@ Restart Claude Desktop. Your GraphQL operations will appear as tools.
 - [x] Spring GraphQL starter
 - [ ] MCP Resources (schema summary, type docs)
 - [ ] MCP Prompts (curated exploration templates)
-- [ ] AI-friendly discovery (tags, domain grouping, semantic hints)
+- [~] AI-friendly discovery (basic tool annotations shipped; richer grouping and semantic hints next)
 - [ ] OAuth 2.1 metadata support
 - [ ] stdio transport
 - [ ] Netflix DGS adapter

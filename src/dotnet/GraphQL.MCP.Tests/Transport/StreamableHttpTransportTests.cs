@@ -127,6 +127,23 @@ public class StreamableHttpTransportTests
     }
 
     [Fact]
+    public async Task Tools_list_should_include_annotations()
+    {
+        using var host = await CreateTestHost();
+        using var client = host.GetTestClient();
+        var sessionId = await InitializeSessionAsync(client);
+
+        var response = await SendMcpRequest(client, "tools/list", null, sessionId);
+        var json = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+        var firstTool = json.RootElement.GetProperty("result").GetProperty("tools")[0];
+
+        firstTool.GetProperty("annotations").GetProperty("category").GetString().Should().Be("Query");
+        firstTool.GetProperty("annotations").GetProperty("tags").EnumerateArray()
+            .Select(element => element.GetString())
+            .Should().Contain(["query"]);
+    }
+
+    [Fact]
     public async Task Tools_call_with_unknown_tool_should_return_error_content()
     {
         using var host = await CreateTestHost();
