@@ -70,13 +70,13 @@ dotnet add package GraphQL.MCP.HotChocolate
 dotnet add package GraphQL.MCP.GraphQLDotNet
 ```
 
-### Java (Spring) — local preview
+### Java (Spring)
 
 ```xml
 <dependency>
     <groupId>dev.graphql-mcp</groupId>
     <artifactId>graphql-mcp-spring-boot-starter</artifactId>
-    <version>0.1.0-alpha.1</version> <!-- Java is implemented locally but not yet released -->
+    <version>0.1.0-alpha.3</version>
 </dependency>
 ```
 
