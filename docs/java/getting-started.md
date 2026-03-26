@@ -60,18 +60,18 @@ public class BookController {
 
 ## Example Dependency Setup
 
-Until the Java packages are published, the example resolves local snapshot artifacts:
+Add the following dependencies to your `pom.xml`:
 
 ```xml
 <dependency>
     <groupId>dev.graphql-mcp</groupId>
     <artifactId>graphql-mcp-spring-boot-starter</artifactId>
-    <version>0.1.0-alpha.1</version>
+    <version>0.1.0-alpha.3</version>
 </dependency>
 <dependency>
     <groupId>dev.graphql-mcp</groupId>
     <artifactId>graphql-mcp-web</artifactId>
-    <version>0.1.0-alpha.1</version>
+    <version>0.1.0-alpha.3</version>
 </dependency>
 ```
 

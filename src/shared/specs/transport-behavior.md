@@ -62,7 +62,7 @@ Client                          Server
   },
   "serverInfo": {
     "name": "graphql-mcp",
-    "version": "0.1.0-alpha.1"
+    "version": "0.1.0-alpha.3"
   }
 }
 ```

@@ -56,7 +56,7 @@ All messages use JSON-RPC 2.0:
     },
     "serverInfo": {
       "name": "graphql-mcp",
-      "version": "0.1.0-alpha.1"
+      "version": "0.1.0-alpha.3"
     }
   }
 }

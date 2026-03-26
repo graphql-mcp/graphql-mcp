@@ -14,12 +14,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 22 new tests for graphql-dotnet adapter (schema source + executor)
 - Selection set field exclusion - `ExcludedFields` patterns now filter nested type fields, not just root operations
 - `IsFieldExcluded()` method on `IMcpPolicy` interface
-- Java/Spring track - core execution, publishing, web transport, Spring Boot auto-configuration, and a minimal example are implemented locally, but the Java line is not yet release-ready
-
 ### Fixed
 - ISchema DI resolution crash - Hot Chocolate adapter now uses `IRequestExecutorResolver` instead of `ISchema` (not registered in HC DI container)
 - Integer argument deserialization - added `TryGetInt32` check before `TryGetInt64` in `ToolExecutor.DeserializeJsonElement`
 - C# ternary numeric widening - added explicit `(object)` casts to prevent implicit int/long/double coercion in switch expression
+
+## [java-v0.1.0-alpha.3] - 2026-03-26
+
+### Added
+- Java/Spring track - core execution, publishing, web transport, Spring Boot auto-configuration, and a minimal example
+- Java CI pipeline with build, test, formatting checks, and coverage
+- Java publish pipeline to Maven Central with GPG signing and GitHub Release creation
+- Java Spring minimal example app (`examples/java-spring-minimal`)
 
 ## [0.1.0-alpha.1] - 2026-03-21
 
