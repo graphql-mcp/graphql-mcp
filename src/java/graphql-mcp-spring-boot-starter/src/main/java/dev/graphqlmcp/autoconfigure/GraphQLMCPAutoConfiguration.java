@@ -84,7 +84,9 @@ public class GraphQLMCPAutoConfiguration {
         properties.isAllowMutations(),
         Set.copyOf(properties.getExcludedFields()),
         properties.getMaxOutputDepth(),
-        properties.getMaxToolCount());
+        properties.getMaxToolCount(),
+        properties.isRequireDescriptions(),
+        properties.getMaxArgumentCount());
   }
 
   private GraphQLToMCPToolMapper.NamingPolicy mapNamingPolicy(String policy) {

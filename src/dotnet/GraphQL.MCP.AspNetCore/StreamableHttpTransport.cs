@@ -145,6 +145,11 @@ public sealed class StreamableHttpTransport
         {
             name = t.Name,
             description = t.Description,
+            annotations = new
+            {
+                category = t.Category,
+                tags = t.Tags
+            },
             inputSchema = JsonSerializer.Deserialize<object>(
                 t.InputSchema.RootElement.GetRawText(), JsonOptions)
         });

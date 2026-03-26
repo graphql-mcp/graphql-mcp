@@ -18,7 +18,9 @@ builder.Services.AddHotChocolateMcp(options =>
     // --- Limits ---
     options.MaxOutputDepth = 3;                      // Selection set depth (default: 3)
     options.MaxToolCount = 50;                       // Max tools published (default: 50)
+    options.MaxArgumentCount = 25;                   // Max allowed arguments per published tool
     options.IncludeDescriptions = true;              // Include GraphQL descriptions (default: true)
+    options.RequireDescriptionsForPublishedTools = false; // Skip undocumented operations
 
     // --- Auth ---
     options.Authorization.Mode = McpAuthMode.None;   // None | Passthrough
@@ -113,6 +115,8 @@ Same as Raw but prefix is always applied. Without a prefix, identical to Raw.
 | `ExcludedTypes` | `HashSet<string>` | `[]` | Types to exclude |
 | `MaxOutputDepth` | `int` | `3` | Max selection set depth |
 | `MaxToolCount` | `int` | `50` | Max published tools |
+| `MaxArgumentCount` | `int` | `25` | Max argument count allowed for a published tool |
 | `IncludeDescriptions` | `bool` | `true` | Include GraphQL descriptions |
+| `RequireDescriptionsForPublishedTools` | `bool` | `false` | Skip operations with missing descriptions |
 | `Authorization.Mode` | `McpAuthMode` | `None` | Auth mode |
 | `Transport` | `McpTransport` | `StreamableHttp` | Transport protocol |

@@ -31,6 +31,9 @@ public class GraphQLToMCPToolMapper {
     if (op.graphQLFieldName().startsWith("__")) return false;
     if (op.operationType() == OperationType.MUTATION && !config.allowMutations()) return false;
     if (config.excludedFields().contains(op.graphQLFieldName())) return false;
+    if (config.requireDescriptions() && (op.description() == null || op.description().isBlank()))
+      return false;
+    if (op.arguments().size() > config.maxArgumentCount()) return false;
     return true;
   }
 
@@ -62,12 +65,20 @@ public class GraphQLToMCPToolMapper {
                     + op.operationType().name().toLowerCase()
                     + ": "
                     + op.graphQLFieldName());
+    String category = op.operationType() == OperationType.QUERY ? "Query" : "Mutation";
+    List<String> tags = List.of(op.operationType().name().toLowerCase(), category.toLowerCase());
 
-    return new MCPToolDescriptor(name, description, op.graphQLFieldName(), op.operationType());
+    return new MCPToolDescriptor(
+        name, description, category, tags, op.graphQLFieldName(), op.operationType());
   }
 
   public record MCPToolDescriptor(
-      String name, String description, String graphQLFieldName, OperationType operationType) {}
+      String name,
+      String description,
+      String category,
+      List<String> tags,
+      String graphQLFieldName,
+      OperationType operationType) {}
 
   public record GraphQLMCPConfig(
       String toolPrefix,
@@ -75,9 +86,11 @@ public class GraphQLToMCPToolMapper {
       boolean allowMutations,
       Set<String> excludedFields,
       int maxOutputDepth,
-      int maxToolCount) {
+      int maxToolCount,
+      boolean requireDescriptions,
+      int maxArgumentCount) {
     public static GraphQLMCPConfig defaults() {
-      return new GraphQLMCPConfig(null, NamingPolicy.VERB_NOUN, false, Set.of(), 3, 50);
+      return new GraphQLMCPConfig(null, NamingPolicy.VERB_NOUN, false, Set.of(), 3, 50, false, 25);
     }
   }
 

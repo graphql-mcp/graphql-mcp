@@ -56,6 +56,25 @@ public sealed partial class PolicyEngine : IMcpPolicy
             return false;
         }
 
+        if (_options.RequireDescriptionsForPublishedTools &&
+            string.IsNullOrWhiteSpace(operation.Description))
+        {
+            _logger.LogInformation(
+                "Excluding field '{Field}' - description is required",
+                operation.GraphQLFieldName);
+            return false;
+        }
+
+        if (operation.Arguments.Count > _options.MaxArgumentCount)
+        {
+            _logger.LogInformation(
+                "Excluding field '{Field}' - argument count {Count} exceeds MaxArgumentCount {Max}",
+                operation.GraphQLFieldName,
+                operation.Arguments.Count,
+                _options.MaxArgumentCount);
+            return false;
+        }
+
         // Include allowlist check: when IncludedFields is set, only matching fields pass
         if (_includedFieldPatterns is not null)
         {

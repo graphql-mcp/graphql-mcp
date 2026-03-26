@@ -2,7 +2,7 @@
 
 ## Status
 
-The Java/Spring track is available as a preview release on Maven Central.
+The Java/Spring track is available as an alpha-preview release on Maven Central.
 
 - Core execution, publishing, Spring Boot auto-configuration, and Streamable HTTP transport are implemented
 - Example app and tests exist in the repo
@@ -15,7 +15,7 @@ The Java/Spring track is available as a preview release on Maven Central.
 
 ## Modules
 
-The Java preview currently uses two modules:
+The current Java alpha-preview uses two modules:
 
 - `graphql-mcp-spring-boot-starter`
 - `graphql-mcp-web`
@@ -129,6 +129,7 @@ curl -X POST http://localhost:8080/mcp \
 ## Current Limitations
 
 - The Java docs are intentionally lightweight while the Java alpha matures
+- discovery metadata is intentionally lightweight
 - Cross-framework docs are still centered on the .NET release track
 
 ## Next Steps

@@ -14,10 +14,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 22 new tests for graphql-dotnet adapter (schema source + executor)
 - Selection set field exclusion - `ExcludedFields` patterns now filter nested type fields, not just root operations
 - `IsFieldExcluded()` method on `IMcpPolicy` interface
+- `RequireDescriptionsForPublishedTools` / `graphql.mcp.require-descriptions` policy option
+- `MaxArgumentCount` / `graphql.mcp.max-argument-count` policy option
+- basic discovery metadata on published tools via category/tag annotations
+- dedicated docs for policies, adapters, and roadmap
 ### Fixed
 - ISchema DI resolution crash - Hot Chocolate adapter now uses `IRequestExecutorResolver` instead of `ISchema` (not registered in HC DI container)
 - Integer argument deserialization - added `TryGetInt32` check before `TryGetInt64` in `ToolExecutor.DeserializeJsonElement`
 - C# ternary numeric widening - added explicit `(object)` casts to prevent implicit int/long/double coercion in switch expression
+- Java packaging - internal `graphql-mcp-tests` module is now skipped for Central publishing
 
 ## [java-v0.1.0-alpha.3] - 2026-03-26
 

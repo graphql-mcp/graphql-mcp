@@ -24,6 +24,8 @@ class ToolExecutorTest {
                 new ToolDescriptor(
                     "api_get_hello",
                     "Return a greeting",
+                    "Query",
+                    List.of("query"),
                     Map.of("type", "object"),
                     "query($name: String!) { hello(name: $name) }",
                     "hello",

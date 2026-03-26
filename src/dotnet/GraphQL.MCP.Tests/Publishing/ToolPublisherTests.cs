@@ -64,6 +64,25 @@ public class ToolPublisherTests
     }
 
     [Fact]
+    public void Should_publish_basic_discovery_metadata()
+    {
+        var sut = CreateSut();
+        var op = new CanonicalOperation
+        {
+            Name = "user",
+            GraphQLFieldName = "user",
+            Description = "Fetch a user",
+            OperationType = OperationType.Query,
+            ReturnType = new CanonicalType { Name = "User", Kind = TypeKind.Object }
+        };
+
+        var tools = sut.Publish([op]);
+
+        tools[0].Category.Should().Be("User");
+        tools[0].Tags.Should().Contain(["query", "user"]);
+    }
+
+    [Fact]
     public void Should_prefix_mutations_with_MUTATION_in_description()
     {
         var sut = CreateSut(new McpOptions { AllowMutations = true });

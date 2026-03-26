@@ -13,8 +13,10 @@ public class GraphQLMCPProperties {
   private String namingPolicy = "verb-noun";
   private boolean allowMutations = false;
   private List<String> excludedFields = new ArrayList<>();
+  private boolean requireDescriptions = false;
   private int maxOutputDepth = 3;
   private int maxToolCount = 50;
+  private int maxArgumentCount = 25;
   private String transport = "streamable-http";
   private Authorization authorization = new Authorization();
 
@@ -60,6 +62,14 @@ public class GraphQLMCPProperties {
     this.excludedFields = excludedFields;
   }
 
+  public boolean isRequireDescriptions() {
+    return requireDescriptions;
+  }
+
+  public void setRequireDescriptions(boolean requireDescriptions) {
+    this.requireDescriptions = requireDescriptions;
+  }
+
   public int getMaxOutputDepth() {
     return maxOutputDepth;
   }
@@ -74,6 +84,14 @@ public class GraphQLMCPProperties {
 
   public void setMaxToolCount(int maxToolCount) {
     this.maxToolCount = maxToolCount;
+  }
+
+  public int getMaxArgumentCount() {
+    return maxArgumentCount;
+  }
+
+  public void setMaxArgumentCount(int maxArgumentCount) {
+    this.maxArgumentCount = maxArgumentCount;
   }
 
   public String getTransport() {

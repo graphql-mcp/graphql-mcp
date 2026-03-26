@@ -50,6 +50,43 @@ public class PolicyEngineTests
     }
 
     [Fact]
+    public void Should_exclude_operations_without_description_when_required()
+    {
+        var sut = CreateSut(new McpOptions { RequireDescriptionsForPublishedTools = true });
+        var op = CreateOperation("users");
+
+        sut.ShouldIncludeOperation(op).Should().BeFalse();
+    }
+
+    [Fact]
+    public void Should_exclude_operations_exceeding_MaxArgumentCount()
+    {
+        var sut = CreateSut(new McpOptions { MaxArgumentCount = 1 });
+        var op = new CanonicalOperation
+        {
+            Name = "searchUsers",
+            GraphQLFieldName = "searchUsers",
+            OperationType = OperationType.Query,
+            ReturnType = new CanonicalType { Name = "String", Kind = TypeKind.Scalar },
+            Arguments =
+            [
+                new CanonicalArgument
+                {
+                    Name = "name",
+                    Type = new CanonicalType { Name = "String", Kind = TypeKind.Scalar }
+                },
+                new CanonicalArgument
+                {
+                    Name = "email",
+                    Type = new CanonicalType { Name = "String", Kind = TypeKind.Scalar }
+                }
+            ]
+        };
+
+        sut.ShouldIncludeOperation(op).Should().BeFalse();
+    }
+
+    [Fact]
     public void Should_exclude_introspection_fields()
     {
         var sut = CreateSut();

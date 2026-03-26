@@ -25,7 +25,9 @@ class ToolPublisherTest {
                 false,
                 Set.of("secretNote"),
                 3,
-                10));
+                10,
+                false,
+                25));
     ToolPublisher publisher = new ToolPublisher(mapper, mapperConfig());
 
     List<ToolDescriptor> tools = publisher.publish(introspector.introspect(schema), schema);
@@ -48,6 +50,8 @@ class ToolPublisherTest {
     assertTrue(book.graphQLQuery().contains("author { name email }"));
     assertFalse(book.graphQLQuery().contains("secretNote"));
     assertEquals("id", book.argumentMapping().get("id"));
+    assertEquals("Query", book.category());
+    assertTrue(book.tags().contains("query"));
   }
 
   @Test
@@ -57,7 +61,7 @@ class ToolPublisherTest {
     GraphQLToMCPToolMapper mapper =
         new GraphQLToMCPToolMapper(
             new GraphQLToMCPToolMapper.GraphQLMCPConfig(
-                null, GraphQLToMCPToolMapper.NamingPolicy.RAW, true, Set.of(), 3, 10));
+                null, GraphQLToMCPToolMapper.NamingPolicy.RAW, true, Set.of(), 3, 10, false, 25));
     ToolPublisher publisher = new ToolPublisher(mapper, mapperConfig());
 
     List<ToolDescriptor> tools = publisher.publish(introspector.introspect(schema), schema);
@@ -77,6 +81,13 @@ class ToolPublisherTest {
 
   private static GraphQLToMCPToolMapper.GraphQLMCPConfig mapperConfig() {
     return new GraphQLToMCPToolMapper.GraphQLMCPConfig(
-        "api", GraphQLToMCPToolMapper.NamingPolicy.VERB_NOUN, false, Set.of("secretNote"), 3, 10);
+        "api",
+        GraphQLToMCPToolMapper.NamingPolicy.VERB_NOUN,
+        false,
+        Set.of("secretNote"),
+        3,
+        10,
+        false,
+        25);
   }
 }

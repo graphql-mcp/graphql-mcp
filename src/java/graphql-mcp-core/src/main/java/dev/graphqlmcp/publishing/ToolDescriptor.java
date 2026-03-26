@@ -7,6 +7,8 @@ import java.util.Map;
 public record ToolDescriptor(
     String name,
     String description,
+    String category,
+    java.util.List<String> tags,
     Map<String, Object> inputSchema,
     String graphQLQuery,
     String graphQLFieldName,

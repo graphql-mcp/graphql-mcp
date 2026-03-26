@@ -55,11 +55,15 @@ public sealed class ToolPublisher
             var argumentMapping = BuildArgumentMapping(op);
 
             var description = BuildDescription(op);
+            var category = InferCategory(op);
+            var tags = BuildTags(op, category);
 
             var descriptor = new McpToolDescriptor
             {
                 Name = toolName,
                 Description = description,
+                Category = category,
+                Tags = tags,
                 InputSchema = inputSchema,
                 GraphQLQuery = graphqlQuery,
                 OperationType = op.OperationType,
@@ -268,6 +272,43 @@ public sealed class ToolPublisher
         "Boolean" => "boolean",
         _ => "string" // custom scalars → string
     };
+
+    private static string? InferCategory(CanonicalOperation op)
+    {
+        var returnType = GetInnermostType(op.ReturnType);
+        if (returnType.Kind is TypeKind.Object or TypeKind.Interface or TypeKind.Union)
+        {
+            return returnType.Name;
+        }
+
+        return op.OperationType == OperationType.Query ? "Query" : "Mutation";
+    }
+
+    private static IReadOnlyList<string> BuildTags(CanonicalOperation op, string? category)
+    {
+        var tags = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            op.OperationType.ToString().ToLowerInvariant()
+        };
+
+        if (!string.IsNullOrWhiteSpace(category))
+        {
+            tags.Add(category.ToLowerInvariant());
+        }
+
+        return tags.OrderBy(tag => tag, StringComparer.Ordinal).ToArray();
+    }
+
+    private static CanonicalType GetInnermostType(CanonicalType type)
+    {
+        var current = type;
+        while (current.OfType is not null)
+        {
+            current = current.OfType;
+        }
+
+        return current;
+    }
 
     private string BuildGraphQLQuery(CanonicalOperation op)
     {
