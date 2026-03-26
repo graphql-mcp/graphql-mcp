@@ -22,7 +22,8 @@ class GraphQLMCPServerTest {
             "query { hello }",
             "hello",
             OperationType.QUERY,
-            Map.of());
+            Map.of(),
+            "hello");
     GraphQLMCPServer server = new GraphQLMCPServer(List.of(tool));
 
     GraphQLMCPServer.InitializeResult init = server.initialize();
@@ -31,6 +32,8 @@ class GraphQLMCPServerTest {
     assertEquals("graphql-mcp", init.serverInfo().name());
     assertEquals("0.1.0", init.serverInfo().version());
     assertTrue(init.capabilities().tools().listChanged());
+    assertTrue(init.capabilities().catalog().list());
+    assertEquals("domain", init.capabilities().catalog().grouping());
     assertEquals(1, server.listTools().size());
     assertTrue(server.hasTool("api_get_hello"));
     assertFalse(server.hasTool("missing"));

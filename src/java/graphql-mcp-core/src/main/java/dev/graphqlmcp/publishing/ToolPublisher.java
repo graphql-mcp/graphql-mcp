@@ -41,18 +41,21 @@ public class ToolPublisher {
       Map<String, Object> inputSchema = buildInputSchema(op);
       String graphQLQuery = buildGraphQLQuery(op, schema);
       Map<String, String> argumentMapping = buildArgumentMapping(op);
+      String domainGroup = buildDomainGroup(op, schema);
+      List<String> tags = mergeTags(mcpTool.tags(), domainGroup);
 
       result.add(
           new ToolDescriptor(
               mcpTool.name(),
               mcpTool.description(),
               mcpTool.category(),
-              mcpTool.tags(),
+              tags,
               inputSchema,
               graphQLQuery,
               mcpTool.graphQLFieldName(),
               mcpTool.operationType(),
-              argumentMapping));
+              argumentMapping,
+              domainGroup));
     }
     return List.copyOf(result);
   }
@@ -87,6 +90,92 @@ public class ToolPublisher {
     schema.put("additionalProperties", false);
 
     return schema;
+  }
+
+  private String buildDomainGroup(CanonicalOperation op, GraphQLSchema schema) {
+    GraphQLObjectType rootType =
+        op.operationType() == OperationType.QUERY
+            ? schema.getQueryType()
+            : schema.getMutationType();
+    GraphQLFieldDefinition fieldDef =
+        rootType != null ? rootType.getFieldDefinition(op.graphQLFieldName()) : null;
+
+    if (fieldDef == null) {
+      return normalizeDomainName(op.graphQLFieldName());
+    }
+
+    GraphQLType unwrapped = GraphQLTypeUtil.unwrapAll(fieldDef.getType());
+    if (unwrapped instanceof GraphQLObjectType
+        || unwrapped instanceof GraphQLInterfaceType
+        || unwrapped instanceof GraphQLUnionType) {
+      return normalizeDomainName(((GraphQLNamedType) unwrapped).getName());
+    }
+
+    return normalizeDomainName(op.graphQLFieldName());
+  }
+
+  private List<String> mergeTags(List<String> tags, String domainGroup) {
+    Set<String> merged = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+    merged.addAll(tags);
+    if (domainGroup != null && !domainGroup.isBlank()) {
+      merged.add(domainGroup);
+    }
+    return List.copyOf(merged);
+  }
+
+  private String normalizeDomainName(String value) {
+    List<String> tokens = splitIdentifier(value);
+    if (tokens.isEmpty()) {
+      return "general";
+    }
+
+    if (tokens.size() > 1 && VERB_PREFIXES.contains(tokens.get(0).toLowerCase(Locale.ROOT))) {
+      tokens = tokens.subList(1, tokens.size());
+    }
+
+    if (tokens.isEmpty()) {
+      return "general";
+    }
+
+    return tokens.get(0).toLowerCase(Locale.ROOT);
+  }
+
+  private List<String> splitIdentifier(String value) {
+    List<String> tokens = new ArrayList<>();
+    StringBuilder current = new StringBuilder();
+
+    Runnable flush =
+        () -> {
+          if (!current.isEmpty()) {
+            tokens.add(current.toString());
+            current.setLength(0);
+          }
+        };
+
+    for (int index = 0; index < value.length(); index++) {
+      char c = value.charAt(index);
+      if (!Character.isLetterOrDigit(c)) {
+        flush.run();
+        continue;
+      }
+
+      if (!current.isEmpty()) {
+        char previous = current.charAt(current.length() - 1);
+        boolean boundary =
+            (Character.isLowerCase(previous) && Character.isUpperCase(c))
+                || (Character.isLetter(previous) && Character.isDigit(c))
+                || (Character.isDigit(previous) && Character.isLetter(c));
+
+        if (boundary) {
+          flush.run();
+        }
+      }
+
+      current.append(c);
+    }
+
+    flush.run();
+    return tokens;
   }
 
   private String buildGraphQLQuery(CanonicalOperation op, GraphQLSchema schema) {
@@ -223,4 +312,19 @@ public class ToolPublisher {
     }
     return mapping;
   }
+
+  private static final Set<String> VERB_PREFIXES =
+      Set.of(
+          "get",
+          "list",
+          "fetch",
+          "find",
+          "search",
+          "create",
+          "update",
+          "delete",
+          "remove",
+          "add",
+          "set",
+          "count");
 }

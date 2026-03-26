@@ -50,8 +50,10 @@ class ToolPublisherTest {
     assertTrue(book.graphQLQuery().contains("author { name email }"));
     assertFalse(book.graphQLQuery().contains("secretNote"));
     assertEquals("id", book.argumentMapping().get("id"));
+    assertEquals("book", book.domainGroup());
     assertEquals("Query", book.category());
     assertTrue(book.tags().contains("query"));
+    assertTrue(book.tags().contains("book"));
   }
 
   @Test
@@ -77,6 +79,7 @@ class ToolPublisherTest {
         mutation
             .graphQLQuery()
             .startsWith("mutation($title: String!) { createBook(title: $title)"));
+    assertEquals("book", mutation.domainGroup());
   }
 
   private static GraphQLToMCPToolMapper.GraphQLMCPConfig mapperConfig() {

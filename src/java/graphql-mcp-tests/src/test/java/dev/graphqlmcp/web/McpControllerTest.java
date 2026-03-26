@@ -3,6 +3,7 @@ package dev.graphqlmcp.web;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import dev.graphqlmcp.TestSchemas;
 import dev.graphqlmcp.execution.GraphQLExecutor;
@@ -50,11 +51,48 @@ class McpControllerTest {
             jsonRpcRequest("tools/list", null), sessionId, new MockHttpServletRequest());
 
     assertEquals(HttpStatus.OK, listResponse.getStatusCode());
-    assertEquals(1, listResponse.getBody().path("result").path("tools").size());
+    assertEquals(2, listResponse.getBody().path("result").path("tools").size());
     var firstTool = listResponse.getBody().path("result").path("tools").get(0);
     assertEquals("api_get_hello", firstTool.path("name").asText());
     assertEquals("Query", firstTool.path("annotations").path("category").asText());
-    assertEquals("query", firstTool.path("annotations").path("tags").get(0).asText());
+    assertEquals("hello", firstTool.path("annotations").path("domain").asText());
+  }
+
+  @Test
+  void catalog_groups_tools_by_domain_without_session() {
+    McpController controller = createController();
+
+    var catalogResponse = controller.handleCatalog();
+
+    assertEquals(HttpStatus.OK, catalogResponse.getStatusCode());
+    assertEquals("graphql-mcp", catalogResponse.getBody().path("serverInfo").path("name").asText());
+    assertTrue(
+        catalogResponse.getBody().path("capabilities").path("catalog").path("list").asBoolean());
+    assertEquals(2, catalogResponse.getBody().path("domains").size());
+
+    var domains = catalogResponse.getBody().path("domains");
+    var bookDomain = findDomain(domains, "book");
+    assertEquals(1, bookDomain.path("toolCount").asInt());
+    assertEquals("api_get_book", bookDomain.path("tools").get(0).path("name").asText());
+    assertEquals("book", bookDomain.path("domain").asText());
+    assertTrue(bookDomain.path("tools").get(0).path("tags").toString().contains("book"));
+  }
+
+  @Test
+  void catalog_list_json_rpc_returns_grouped_tools() {
+    McpController controller = createController();
+    String sessionId =
+        controller
+            .handle(jsonRpcRequest("initialize", null), null, new MockHttpServletRequest())
+            .getHeaders()
+            .getFirst("Mcp-Session-Id");
+
+    var response =
+        controller.handle(
+            jsonRpcRequest("catalog/list", null), sessionId, new MockHttpServletRequest());
+
+    assertEquals(HttpStatus.OK, response.getStatusCode());
+    assertEquals(2, response.getBody().path("result").path("domainCount").asInt());
   }
 
   @Test
@@ -91,22 +129,45 @@ class McpControllerTest {
   }
 
   private static McpController createController() {
+    ToolDescriptor bookTool =
+        new ToolDescriptor(
+            "api_get_book",
+            "Find a book",
+            "Query",
+            List.of("book", "query"),
+            Map.of("type", "object"),
+            "query($id: ID!) { book(id: $id) { title } }",
+            "book",
+            OperationType.QUERY,
+            Map.of("id", "id"),
+            "book");
     ToolDescriptor tool =
         new ToolDescriptor(
             "api_get_hello",
             "Return a greeting",
             "Query",
-            List.of("query"),
+            List.of("hello", "query"),
             Map.of("type", "object"),
             "query($name: String!) { hello(name: $name) }",
             "hello",
             OperationType.QUERY,
-            Map.of("clientName", "name"));
+            Map.of("clientName", "name"),
+            "hello");
 
     GraphQLExecutor executor = new GraphQLExecutor(TestSchemas.createExecutionSchema());
-    ToolExecutor toolExecutor = new ToolExecutor(executor, List.of(tool));
-    GraphQLMCPServer server = new GraphQLMCPServer(List.of(tool));
-    return new McpController(server, toolExecutor, List.of(tool));
+    ToolExecutor toolExecutor = new ToolExecutor(executor, List.of(tool, bookTool));
+    GraphQLMCPServer server = new GraphQLMCPServer(List.of(tool, bookTool));
+    return new McpController(server, toolExecutor, List.of(tool, bookTool));
+  }
+
+  private static ObjectNode findDomain(JsonNode domains, String name) {
+    for (JsonNode domain : domains) {
+      if (name.equals(domain.path("domain").asText())) {
+        return (ObjectNode) domain;
+      }
+    }
+    fail("Missing domain: " + name);
+    return null;
   }
 
   private static ObjectNode jsonRpcRequest(String method, ObjectNode params) {

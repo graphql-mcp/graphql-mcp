@@ -137,10 +137,54 @@ public class StreamableHttpTransportTests
         var json = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
         var firstTool = json.RootElement.GetProperty("result").GetProperty("tools")[0];
 
-        firstTool.GetProperty("annotations").GetProperty("category").GetString().Should().Be("Query");
+        firstTool.GetProperty("annotations").GetProperty("domain").GetString().Should().Be("order");
+        firstTool.GetProperty("annotations").GetProperty("category").GetString().Should().Be("Order");
         firstTool.GetProperty("annotations").GetProperty("tags").EnumerateArray()
             .Select(element => element.GetString())
-            .Should().Contain(["query"]);
+            .Should().Contain(["query", "order"]);
+    }
+
+    [Fact]
+    public async Task Catalog_list_should_group_tools_by_domain()
+    {
+        using var host = await CreateTestHost();
+        using var client = host.GetTestClient();
+        var sessionId = await InitializeSessionAsync(client);
+
+        var response = await SendMcpRequest(client, "catalog/list", null, sessionId);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var json = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+        var domains = json.RootElement.GetProperty("result").GetProperty("domains");
+
+        domains.GetArrayLength().Should().Be(2);
+        json.RootElement.GetProperty("result").GetProperty("toolCount").GetInt32().Should().Be(2);
+
+        var firstDomain = domains[0];
+        firstDomain.GetProperty("domain").GetString().Should().Be("order");
+        firstDomain.GetProperty("categories").EnumerateArray()
+            .Select(element => element.GetString())
+            .Should().Contain(["Order"]);
+        firstDomain.GetProperty("tools")[0].GetProperty("fieldName").GetString().Should().Be("order");
+        firstDomain.GetProperty("toolNames").EnumerateArray()
+            .Select(element => element.GetString())
+            .Should().Contain(["get_order"]);
+    }
+
+    [Fact]
+    public async Task Capabilities_catalog_should_alias_catalog_list()
+    {
+        using var host = await CreateTestHost();
+        using var client = host.GetTestClient();
+        var sessionId = await InitializeSessionAsync(client);
+
+        var response = await SendMcpRequest(client, "capabilities/catalog", null, sessionId);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var json = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+        json.RootElement.GetProperty("result").GetProperty("domainCount").GetInt32().Should().Be(2);
     }
 
     [Fact]
@@ -214,10 +258,42 @@ public class StreamableHttpTransportTests
             {
                 new()
                 {
-                    Name = "hello",
-                    GraphQLFieldName = "hello",
+                    Name = "order",
+                    GraphQLFieldName = "order",
                     OperationType = OperationType.Query,
-                    ReturnType = new CanonicalType { Name = "String", Kind = TypeKind.Scalar },
+                    ReturnType = new CanonicalType
+                    {
+                        Name = "Order",
+                        Kind = TypeKind.Object,
+                        Fields =
+                        [
+                            new CanonicalField
+                            {
+                                Name = "id",
+                                Type = new CanonicalType { Name = "ID", Kind = TypeKind.Scalar }
+                            }
+                        ]
+                    },
+                    Arguments = []
+                },
+                new()
+                {
+                    Name = "user",
+                    GraphQLFieldName = "user",
+                    OperationType = OperationType.Query,
+                    ReturnType = new CanonicalType
+                    {
+                        Name = "User",
+                        Kind = TypeKind.Object,
+                        Fields =
+                        [
+                            new CanonicalField
+                            {
+                                Name = "name",
+                                Type = new CanonicalType { Name = "String", Kind = TypeKind.Scalar }
+                            }
+                        ]
+                    },
                     Arguments = []
                 }
             });
@@ -228,7 +304,11 @@ public class StreamableHttpTransportTests
         executor.ExecuteAsync(Arg.Any<GraphQLExecutionRequest>(), Arg.Any<CancellationToken>())
             .Returns(new GraphQLExecutionResult
             {
-                Data = new Dictionary<string, object?> { ["hello"] = "world" }
+                Data = new Dictionary<string, object?>
+                {
+                    ["order"] = new Dictionary<string, object?> { ["id"] = "o-1" },
+                    ["user"] = new Dictionary<string, object?> { ["name"] = "Ada" }
+                }
             });
 
         return await new HostBuilder()

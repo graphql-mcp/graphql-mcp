@@ -24,6 +24,7 @@ public class ToolExecutorTests
         {
             Name = name,
             Description = "Test tool",
+            Domain = name.ToLowerInvariant(),
             InputSchema = JsonDocument.Parse("""{"type":"object","properties":{}}"""),
             GraphQLQuery = query,
             OperationType = OperationType.Query,
@@ -68,6 +69,7 @@ public class ToolExecutorTests
         {
             Name = "getUserById",
             Description = "Get user",
+            Domain = "user",
             InputSchema = JsonDocument.Parse("""{"type":"object","properties":{"id":{"type":"string"}}}"""),
             GraphQLQuery = "query ($id: ID!) { userById(id: $id) { name } }",
             OperationType = OperationType.Query,
@@ -188,6 +190,7 @@ public class ToolExecutorTests
         {
             Name = "getBookByYear",
             Description = "Get book",
+            Domain = "book",
             InputSchema = JsonDocument.Parse("""{"type":"object","properties":{"year":{"type":"integer"}}}"""),
             GraphQLQuery = "query ($year: Int!) { bookByYear(year: $year) { title } }",
             OperationType = OperationType.Query,
@@ -223,6 +226,7 @@ public class ToolExecutorTests
         {
             Name = "getByTimestamp",
             Description = "Get by timestamp",
+            Domain = "timestamp",
             InputSchema = JsonDocument.Parse("""{"type":"object","properties":{"ts":{"type":"integer"}}}"""),
             GraphQLQuery = "query ($ts: Long!) { byTimestamp(ts: $ts) { id } }",
             OperationType = OperationType.Query,

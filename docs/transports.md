@@ -38,6 +38,7 @@ All messages use JSON-RPC 2.0:
 |--------|-------------|
 | `initialize` | Capability negotiation |
 | `tools/list` | List all available tools |
+| `catalog/list` | Return grouped discovery metadata for published tools |
 | `tools/call` | Execute a tool |
 | `ping` | Health check |
 
@@ -52,6 +53,9 @@ All messages use JSON-RPC 2.0:
     "capabilities": {
       "tools": {
         "listChanged": true
+      },
+      "catalog": {
+        "list": true
       }
     },
     "serverInfo": {
@@ -74,6 +78,28 @@ All messages use JSON-RPC 2.0:
     "arguments": {
       "limit": 10
     }
+  }
+}
+```
+
+### Catalog Response
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 3,
+  "result": {
+    "domainCount": 2,
+    "toolCount": 4,
+    "domains": [
+      {
+        "domain": "book",
+        "categories": ["Book"],
+        "tags": ["book", "query"],
+        "toolCount": 2,
+        "toolNames": ["get_book", "list_books"]
+      }
+    ]
   }
 }
 ```

@@ -83,6 +83,35 @@ public class ToolPublisherTests
     }
 
     [Fact]
+    public void Should_include_domain_grouping_metadata_for_object_return_types()
+    {
+        var sut = CreateSut();
+        var op = new CanonicalOperation
+        {
+            Name = "getUser",
+            GraphQLFieldName = "getUser",
+            Description = "Fetch a user",
+            OperationType = OperationType.Query,
+            ReturnType = new CanonicalType { Name = "User", Kind = TypeKind.Object }
+        };
+
+        var tools = sut.Publish([op]);
+
+        tools[0].Domain.Should().Be("user");
+    }
+
+    [Fact]
+    public void Should_infer_domain_grouping_from_field_names_for_scalar_tools()
+    {
+        var sut = CreateSut();
+        var op = CreateQueryOp("healthCheck");
+
+        var tools = sut.Publish([op]);
+
+        tools[0].Domain.Should().Be("health");
+    }
+
+    [Fact]
     public void Should_prefix_mutations_with_MUTATION_in_description()
     {
         var sut = CreateSut(new McpOptions { AllowMutations = true });

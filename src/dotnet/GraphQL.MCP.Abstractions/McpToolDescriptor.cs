@@ -19,6 +19,11 @@ public sealed class McpToolDescriptor
     public string? Description { get; init; }
 
     /// <summary>
+    /// Explicit domain grouping used to cluster related tools in discovery UIs.
+    /// </summary>
+    public required string Domain { get; init; }
+
+    /// <summary>
     /// Optional high-level category inferred from the GraphQL operation shape.
     /// </summary>
     public string? Category { get; init; }
