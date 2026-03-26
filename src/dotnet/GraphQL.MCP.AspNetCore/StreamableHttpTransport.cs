@@ -100,6 +100,10 @@ public sealed class StreamableHttpTransport
                 case "tools/list":
                     await HandleToolsList(context, id);
                     break;
+                case "catalog/list":
+                case "capabilities/catalog":
+                    await HandleCatalog(context, id);
+                    break;
                 case "tools/call":
                     await HandleToolsCall(context, doc.RootElement, id);
                     break;
@@ -127,7 +131,8 @@ public sealed class StreamableHttpTransport
             protocolVersion = "2025-06-18",
             capabilities = new
             {
-                tools = new { listChanged = true }
+                tools = new { listChanged = true },
+                catalog = new { list = true }
             },
             serverInfo = new
             {
@@ -147,6 +152,7 @@ public sealed class StreamableHttpTransport
             description = t.Description,
             annotations = new
             {
+                domain = t.Domain,
                 category = t.Category,
                 tags = t.Tags
             },
@@ -155,6 +161,59 @@ public sealed class StreamableHttpTransport
         });
 
         var result = new { tools };
+        await WriteJsonRpcResult(context, id, JsonSerializer.Serialize(result, JsonOptions));
+    }
+
+    private async Task HandleCatalog(HttpContext context, object? id)
+    {
+        var domains = _toolRegistry.Tools
+            .GroupBy(t => string.IsNullOrWhiteSpace(t.Domain) ? "general" : t.Domain, StringComparer.OrdinalIgnoreCase)
+            .Select(group =>
+            {
+                var categories = group
+                    .Select(t => t.Category)
+                    .Where(category => !string.IsNullOrWhiteSpace(category))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(category => category, StringComparer.Ordinal)
+                    .ToArray();
+
+                var tags = group
+                    .SelectMany(t => t.Tags)
+                    .Where(tag => !string.IsNullOrWhiteSpace(tag))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(tag => tag, StringComparer.Ordinal)
+                    .ToArray();
+
+                return new
+                {
+                    domain = group.Key,
+                    categories,
+                    tags,
+                    toolCount = group.Count(),
+                    toolNames = group.Select(t => t.Name).OrderBy(name => name, StringComparer.Ordinal).ToArray(),
+                    tools = group
+                        .OrderBy(t => t.Name, StringComparer.Ordinal)
+                        .Select(t => new
+                        {
+                            name = t.Name,
+                            description = t.Description,
+                            category = t.Category,
+                            operationType = t.OperationType.ToString().ToLowerInvariant(),
+                            fieldName = t.GraphQLFieldName,
+                            tags = t.Tags
+                        })
+                        .ToArray()
+                };
+            })
+            .OrderBy(entry => entry.domain, StringComparer.Ordinal)
+            .ToArray();
+
+        var result = new
+        {
+            domainCount = domains.Length,
+            toolCount = _toolRegistry.Tools.Count,
+            domains
+        };
         await WriteJsonRpcResult(context, id, JsonSerializer.Serialize(result, JsonOptions));
     }
 
@@ -229,7 +288,7 @@ public sealed class StreamableHttpTransport
     }
 
     private static bool RequiresSession(string? method) =>
-        method is "tools/list" or "tools/call";
+        method is "tools/list" or "catalog/list" or "capabilities/catalog" or "tools/call";
 
     private static async Task WriteJsonRpcResult(HttpContext context, object? id, string result)
     {

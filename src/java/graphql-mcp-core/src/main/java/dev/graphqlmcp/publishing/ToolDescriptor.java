@@ -13,4 +13,5 @@ public record ToolDescriptor(
     String graphQLQuery,
     String graphQLFieldName,
     OperationType operationType,
-    Map<String, String> argumentMapping) {}
+    Map<String, String> argumentMapping,
+    String domainGroup) {}

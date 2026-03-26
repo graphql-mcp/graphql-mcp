@@ -30,7 +30,8 @@ class ToolExecutorTest {
                     "query($name: String!) { hello(name: $name) }",
                     "hello",
                     OperationType.QUERY,
-                    Map.of("clientName", "name"))));
+                    Map.of("clientName", "name"),
+                    "hello")));
 
     ToolExecutor.ToolResult result =
         toolExecutor.execute(

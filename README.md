@@ -35,6 +35,13 @@ Some frameworks are adding native MCP support (e.g., Hot Chocolate 16). graphql-
 **Use native MCP when** your framework ships it and it covers your needs.
 **Use graphql-mcp when** you need cross-framework support, advanced curation, or operate across multiple GraphQL backends.
 
+## Discovery
+
+graphql-mcp now ships two lightweight discovery surfaces:
+
+- `tools/list` includes per-tool `domain`, `category`, and `tags` annotations
+- `catalog/list` returns grouped domain summaries and tool metadata for exploration UIs
+
 ## Supported AI Clients
 
 | Client | Status |
@@ -281,7 +288,7 @@ Restart Claude Desktop. Your GraphQL operations will appear as tools.
 - [x] Spring GraphQL starter
 - [ ] MCP Resources (schema summary, type docs)
 - [ ] MCP Prompts (curated exploration templates)
-- [~] AI-friendly discovery (basic tool annotations shipped; richer grouping and semantic hints next)
+- [~] AI-friendly discovery (domain grouping and grouped catalogs shipped; semantic hints next)
 - [ ] OAuth 2.1 metadata support
 - [ ] stdio transport
 - [ ] Netflix DGS adapter

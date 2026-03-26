@@ -14,6 +14,7 @@ The shared core is responsible for:
 
 - policy evaluation
 - tool naming
+- discovery metadata and domain grouping
 - JSON Schema generation
 - GraphQL query generation
 - tool execution orchestration

@@ -8,10 +8,7 @@ import dev.graphqlmcp.execution.ToolExecutor;
 import dev.graphqlmcp.publishing.ToolDescriptor;
 import dev.graphqlmcp.server.GraphQLMCPServer;
 import jakarta.servlet.http.HttpServletRequest;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -73,6 +70,7 @@ public class McpController {
 
     return switch (method) {
       case "tools/list" -> handleToolsList(id);
+      case "catalog/list", "capabilities/catalog" -> handleCatalogRpc(id);
       case "tools/call" -> handleToolsCall(id, body.get("params"), request);
       case "ping" -> handlePing(id);
       default -> ResponseEntity.ok(jsonRpcError(body, -32601, "Method not found: " + method));
@@ -93,6 +91,13 @@ public class McpController {
     return ResponseEntity.ok().build();
   }
 
+  @GetMapping(
+      path = {"/catalog", "/capabilities"},
+      produces = MediaType.APPLICATION_JSON_VALUE)
+  public ResponseEntity<ObjectNode> handleCatalog() {
+    return ResponseEntity.ok(buildCatalogResult());
+  }
+
   private ResponseEntity<ObjectNode> handleInitialize(JsonNode id) {
     String newSessionId = UUID.randomUUID().toString().replace("-", "");
     sessions.put(newSessionId, true);
@@ -106,6 +111,10 @@ public class McpController {
     ObjectNode toolsCap = MAPPER.createObjectNode();
     toolsCap.put("listChanged", initResult.capabilities().tools().listChanged());
     capabilities.set("tools", toolsCap);
+    ObjectNode catalogCap = MAPPER.createObjectNode();
+    catalogCap.put("list", initResult.capabilities().catalog().list());
+    catalogCap.put("grouping", initResult.capabilities().catalog().grouping());
+    capabilities.set("catalog", catalogCap);
     result.set("capabilities", capabilities);
 
     ObjectNode serverInfo = MAPPER.createObjectNode();
@@ -127,6 +136,7 @@ public class McpController {
       ObjectNode annotations = MAPPER.createObjectNode();
       annotations.put("category", tool.category());
       annotations.set("tags", MAPPER.valueToTree(tool.tags()));
+      annotations.put("domain", tool.domainGroup());
       toolNode.set("annotations", annotations);
       toolNode.set("inputSchema", MAPPER.valueToTree(tool.inputSchema()));
       toolsArray.add(toolNode);
@@ -178,6 +188,87 @@ public class McpController {
 
   private ResponseEntity<ObjectNode> handlePing(JsonNode id) {
     return ResponseEntity.ok(jsonRpcResult(id, MAPPER.createObjectNode()));
+  }
+
+  private ResponseEntity<ObjectNode> handleCatalogRpc(JsonNode id) {
+    return ResponseEntity.ok(jsonRpcResult(id, buildCatalogResult()));
+  }
+
+  private ObjectNode buildCatalogResult() {
+    GraphQLMCPServer.InitializeResult initResult = server.initialize();
+
+    ObjectNode result = MAPPER.createObjectNode();
+    ObjectNode serverInfo = MAPPER.createObjectNode();
+    serverInfo.put("name", initResult.serverInfo().name());
+    serverInfo.put("version", initResult.serverInfo().version());
+    result.set("serverInfo", serverInfo);
+
+    ObjectNode capabilities = MAPPER.createObjectNode();
+    ObjectNode toolsCap = MAPPER.createObjectNode();
+    toolsCap.put("listChanged", initResult.capabilities().tools().listChanged());
+    capabilities.set("tools", toolsCap);
+    ObjectNode catalogCap = MAPPER.createObjectNode();
+    catalogCap.put("list", initResult.capabilities().catalog().list());
+    catalogCap.put("grouping", initResult.capabilities().catalog().grouping());
+    capabilities.set("catalog", catalogCap);
+    result.set("capabilities", capabilities);
+
+    ArrayNode domains = MAPPER.createArrayNode();
+    Map<String, List<ToolDescriptor>> groupedTools = new TreeMap<>();
+    for (ToolDescriptor tool : tools) {
+      groupedTools.computeIfAbsent(tool.domainGroup(), key -> new ArrayList<>()).add(tool);
+    }
+
+    for (Map.Entry<String, List<ToolDescriptor>> entry : groupedTools.entrySet()) {
+      ObjectNode domainNode = MAPPER.createObjectNode();
+      domainNode.put("domain", entry.getKey());
+      domainNode.put("toolCount", entry.getValue().size());
+
+      ArrayNode categories = MAPPER.createArrayNode();
+      entry.getValue().stream()
+          .map(ToolDescriptor::category)
+          .filter(Objects::nonNull)
+          .distinct()
+          .sorted()
+          .forEach(categories::add);
+      domainNode.set("categories", categories);
+
+      ArrayNode tags = MAPPER.createArrayNode();
+      entry.getValue().stream()
+          .flatMap(tool -> tool.tags().stream())
+          .filter(Objects::nonNull)
+          .distinct()
+          .sorted()
+          .forEach(tags::add);
+      domainNode.set("tags", tags);
+
+      ArrayNode toolNames = MAPPER.createArrayNode();
+      entry.getValue().stream().map(ToolDescriptor::name).sorted().forEach(toolNames::add);
+      domainNode.set("toolNames", toolNames);
+
+      ArrayNode toolSummaries = MAPPER.createArrayNode();
+      entry.getValue().stream()
+          .sorted(Comparator.comparing(ToolDescriptor::name))
+          .forEach(
+              tool -> {
+                ObjectNode toolNode = MAPPER.createObjectNode();
+                toolNode.put("name", tool.name());
+                toolNode.put("description", tool.description());
+                toolNode.put("category", tool.category());
+                toolNode.put("operationType", tool.operationType().name().toLowerCase(Locale.ROOT));
+                toolNode.put("fieldName", tool.graphQLFieldName());
+                toolNode.set("tags", MAPPER.valueToTree(tool.tags()));
+                toolSummaries.add(toolNode);
+              });
+
+      domainNode.set("tools", toolSummaries);
+      domains.add(domainNode);
+    }
+
+    result.put("domainCount", groupedTools.size());
+    result.put("toolCount", tools.size());
+    result.set("domains", domains);
+    return result;
   }
 
   private ObjectNode jsonRpcResult(JsonNode id, ObjectNode result) {

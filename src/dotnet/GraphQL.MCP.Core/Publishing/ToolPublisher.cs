@@ -56,13 +56,15 @@ public sealed class ToolPublisher
 
             var description = BuildDescription(op);
             var category = InferCategory(op);
-            var tags = BuildTags(op, category);
+            var domain = InferDomain(op, category);
+            var tags = BuildTags(op, category, domain);
 
             var descriptor = new McpToolDescriptor
             {
                 Name = toolName,
                 Description = description,
                 Category = category,
+                Domain = domain,
                 Tags = tags,
                 InputSchema = inputSchema,
                 GraphQLQuery = graphqlQuery,
@@ -284,7 +286,19 @@ public sealed class ToolPublisher
         return op.OperationType == OperationType.Query ? "Query" : "Mutation";
     }
 
-    private static IReadOnlyList<string> BuildTags(CanonicalOperation op, string? category)
+    private static string InferDomain(CanonicalOperation op, string? category)
+    {
+        if (!string.IsNullOrWhiteSpace(category) &&
+            !category.Equals("Query", StringComparison.OrdinalIgnoreCase) &&
+            !category.Equals("Mutation", StringComparison.OrdinalIgnoreCase))
+        {
+            return NormalizeDomainName(category);
+        }
+
+        return NormalizeDomainName(op.GraphQLFieldName);
+    }
+
+    private static IReadOnlyList<string> BuildTags(CanonicalOperation op, string? category, string? domain)
     {
         var tags = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
@@ -294,6 +308,11 @@ public sealed class ToolPublisher
         if (!string.IsNullOrWhiteSpace(category))
         {
             tags.Add(category.ToLowerInvariant());
+        }
+
+        if (!string.IsNullOrWhiteSpace(domain))
+        {
+            tags.Add(domain);
         }
 
         return tags.OrderBy(tag => tag, StringComparer.Ordinal).ToArray();
@@ -308,6 +327,71 @@ public sealed class ToolPublisher
         }
 
         return current;
+    }
+
+    private static string NormalizeDomainName(string value)
+    {
+        var tokens = SplitIdentifier(value);
+        if (tokens.Count == 0)
+        {
+            return "general";
+        }
+
+        if (tokens.Count > 1 && VerbPrefixes.Contains(tokens[0]))
+        {
+            tokens.RemoveAt(0);
+        }
+
+        if (tokens.Count == 0)
+        {
+            tokens.Add(value);
+        }
+
+        return tokens[0].ToLowerInvariant();
+    }
+
+    private static List<string> SplitIdentifier(string value)
+    {
+        var tokens = new List<string>();
+        var current = new System.Text.StringBuilder();
+
+        void Flush()
+        {
+            if (current.Length > 0)
+            {
+                tokens.Add(current.ToString());
+                current.Clear();
+            }
+        }
+
+        for (var index = 0; index < value.Length; index++)
+        {
+            var c = value[index];
+            if (!char.IsLetterOrDigit(c))
+            {
+                Flush();
+                continue;
+            }
+
+            if (current.Length > 0)
+            {
+                var previous = current[current.Length - 1];
+                var boundary =
+                    (char.IsLower(previous) && char.IsUpper(c)) ||
+                    (char.IsLetter(previous) && char.IsDigit(c)) ||
+                    (char.IsDigit(previous) && char.IsLetter(c));
+
+                if (boundary)
+                {
+                    Flush();
+                }
+            }
+
+            current.Append(c);
+        }
+
+        Flush();
+        return tokens;
     }
 
     private string BuildGraphQLQuery(CanonicalOperation op)
@@ -425,4 +509,24 @@ public sealed class ToolPublisher
     {
         return op.Arguments.ToDictionary(a => a.Name, a => a.Name);
     }
+
+    private static readonly HashSet<string> VerbPrefixes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "get",
+        "list",
+        "fetch",
+        "find",
+        "search",
+        "create",
+        "update",
+        "delete",
+        "remove",
+        "add",
+        "set",
+        "upsert",
+        "patch",
+        "put",
+        "replace",
+        "count"
+    };
 }

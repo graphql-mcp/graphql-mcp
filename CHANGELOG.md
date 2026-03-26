@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `RequireDescriptionsForPublishedTools` / `graphql.mcp.require-descriptions` policy option
 - `MaxArgumentCount` / `graphql.mcp.max-argument-count` policy option
 - basic discovery metadata on published tools via category/tag annotations
+- grouped discovery metadata via explicit tool domains and `catalog/list` capability catalogs
 - dedicated docs for policies, adapters, and roadmap
 ### Fixed
 - ISchema DI resolution crash - Hot Chocolate adapter now uses `IRequestExecutorResolver` instead of `ISchema` (not registered in HC DI container)
