@@ -2,7 +2,7 @@
 
 ## Status
 
-The Java configuration surface is available for local preview, but the Java track has not been published yet. Treat this as preview documentation for the current Spring implementation.
+The Java configuration surface is available as a preview release on Maven Central.
 
 ## application.yml
 

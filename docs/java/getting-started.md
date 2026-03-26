@@ -2,11 +2,10 @@
 
 ## Status
 
-The Java/Spring track is currently a local preview.
+The Java/Spring track is available as a preview release on Maven Central.
 
 - Core execution, publishing, Spring Boot auto-configuration, and Streamable HTTP transport are implemented
 - Example app and tests exist in the repo
-- Maven Central publishing is not complete yet, so the Java artifacts should currently be treated as unreleased preview packages
 
 ## Prerequisites
 
@@ -129,8 +128,7 @@ curl -X POST http://localhost:8080/mcp \
 
 ## Current Limitations
 
-- Java packages are not released yet
-- The Java docs are intentionally lightweight until the first Java alpha is shipped
+- The Java docs are intentionally lightweight while the Java alpha matures
 - Cross-framework docs are still centered on the .NET release track
 
 ## Next Steps
