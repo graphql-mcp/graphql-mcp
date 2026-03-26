@@ -5,7 +5,7 @@
 
 [![NuGet](https://img.shields.io/nuget/v/GraphQL.MCP.HotChocolate?label=HotChocolate&color=blue)](https://www.nuget.org/packages/GraphQL.MCP.HotChocolate)
 [![NuGet](https://img.shields.io/nuget/v/GraphQL.MCP.GraphQLDotNet?label=GraphQLDotNet&color=blue)](https://www.nuget.org/packages/GraphQL.MCP.GraphQLDotNet)
-[![Maven Central](https://img.shields.io/maven-central/v/dev.graphql-mcp/graphql-mcp-spring?label=Maven%20Central)](https://central.sonatype.com/artifact/dev.graphql-mcp/graphql-mcp-spring)
+[![Maven Central](https://img.shields.io/maven-central/v/dev.graphql-mcp/graphql-mcp-spring-boot-starter?label=Maven%20Central)](https://central.sonatype.com/artifact/dev.graphql-mcp/graphql-mcp-spring-boot-starter)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![.NET CI](https://github.com/graphql-mcp/graphql-mcp/actions/workflows/dotnet-ci.yml/badge.svg)](https://github.com/graphql-mcp/graphql-mcp/actions/workflows/dotnet-ci.yml)
 
@@ -26,7 +26,7 @@ Some frameworks are adding native MCP support (e.g., Hot Chocolate 16). graphql-
 
 | | Native framework MCP | graphql-mcp |
 |---|---|---|
-| Cross-framework support | One framework only | Hot Chocolate, graphql-dotnet, Spring (local preview) |
+| Cross-framework support | One framework only | Hot Chocolate, graphql-dotnet, Spring |
 | Curation & policy engine | Varies | Glob-pattern field/type exclusion, mutation blocking, depth limits |
 | AI-friendly naming | Varies | VerbNoun, Raw, PrefixedRaw policies with tool prefixes |
 | Observability | Varies | Built-in OpenTelemetry traces + metrics |
@@ -51,7 +51,7 @@ Some frameworks are adding native MCP support (e.g., Hot Chocolate 16). graphql-
 |-----------|--------|---------|
 | Hot Chocolate (.NET) | Stable | [`GraphQL.MCP.HotChocolate`](https://www.nuget.org/packages/GraphQL.MCP.HotChocolate) |
 | graphql-dotnet (.NET) | Stable | [`GraphQL.MCP.GraphQLDotNet`](https://www.nuget.org/packages/GraphQL.MCP.GraphQLDotNet) |
-| Spring GraphQL (Java) | In progress, local preview | `dev.graphql-mcp:graphql-mcp-spring` |
+| Spring GraphQL (Java) | Preview | [`dev.graphql-mcp:graphql-mcp-spring-boot-starter`](https://central.sonatype.com/artifact/dev.graphql-mcp/graphql-mcp-spring-boot-starter) |
 | Netflix DGS (Java) | Planned | — |
 
 ---
@@ -275,7 +275,7 @@ Restart Claude Desktop. Your GraphQL operations will appear as tools.
 - [x] Policy engine (field/type exclusion with globs, naming, depth, mutation blocking)
 - [x] Selection set field exclusion (nested types)
 - [x] OpenTelemetry instrumentation
-- [ ] Spring GraphQL starter (in progress, local preview only)
+- [x] Spring GraphQL starter
 - [ ] MCP Resources (schema summary, type docs)
 - [ ] MCP Prompts (curated exploration templates)
 - [ ] AI-friendly discovery (tags, domain grouping, semantic hints)
