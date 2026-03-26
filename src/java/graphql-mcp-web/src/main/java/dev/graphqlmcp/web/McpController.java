@@ -137,6 +137,9 @@ public class McpController {
       annotations.put("category", tool.category());
       annotations.set("tags", MAPPER.valueToTree(tool.tags()));
       annotations.put("domain", tool.domainGroup());
+      if (tool.semanticHints() != null) {
+        annotations.set("semanticHints", MAPPER.valueToTree(tool.semanticHints()));
+      }
       toolNode.set("annotations", annotations);
       toolNode.set("inputSchema", MAPPER.valueToTree(tool.inputSchema()));
       toolsArray.add(toolNode);
@@ -247,6 +250,8 @@ public class McpController {
       domainNode.set("toolNames", toolNames);
 
       ArrayNode toolSummaries = MAPPER.createArrayNode();
+      Set<String> domainIntents = new TreeSet<>();
+      Set<String> domainKeywords = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
       entry.getValue().stream()
           .sorted(Comparator.comparing(ToolDescriptor::name))
           .forEach(
@@ -258,10 +263,28 @@ public class McpController {
                 toolNode.put("operationType", tool.operationType().name().toLowerCase(Locale.ROOT));
                 toolNode.put("fieldName", tool.graphQLFieldName());
                 toolNode.set("tags", MAPPER.valueToTree(tool.tags()));
+                if (tool.semanticHints() != null) {
+                  toolNode.set("semanticHints", MAPPER.valueToTree(tool.semanticHints()));
+                  if (tool.semanticHints().intent() != null
+                      && !tool.semanticHints().intent().isBlank()) {
+                    domainIntents.add(tool.semanticHints().intent());
+                  }
+                  for (String keyword : tool.semanticHints().keywords()) {
+                    if (keyword != null && !keyword.isBlank()) {
+                      domainKeywords.add(keyword);
+                    }
+                  }
+                }
                 toolSummaries.add(toolNode);
               });
 
       domainNode.set("tools", toolSummaries);
+      if (!domainIntents.isEmpty() || !domainKeywords.isEmpty()) {
+        ObjectNode semanticHints = MAPPER.createObjectNode();
+        semanticHints.set("intents", MAPPER.valueToTree(domainIntents));
+        semanticHints.set("keywords", MAPPER.valueToTree(domainKeywords));
+        domainNode.set("semanticHints", semanticHints);
+      }
       domains.add(domainNode);
     }
 

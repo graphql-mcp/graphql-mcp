@@ -8,7 +8,7 @@ This roadmap tracks the cross-framework direction of graphql-mcp.
 - Hot Chocolate adapter
 - graphql-dotnet adapter
 - Streamable HTTP transport
-- grouped discovery metadata and lightweight capability catalogs
+- grouped discovery metadata, semantic hints, and lightweight capability catalogs
 - Java Spring GraphQL alpha-preview track
 - CI/CD for NuGet and Maven Central
 - docs and example apps for .NET and Java
@@ -21,8 +21,8 @@ This roadmap tracks the cross-framework direction of graphql-mcp.
 
 ## Next Differentiators
 
-- semantic hints for tool selection
-- richer domain inference and grouping heuristics
+- searchable capability catalogs and exploration examples
+- stronger domain inference and grouping heuristics for large schemas
 - more advanced policy controls around complexity and curation
 
 ## Later

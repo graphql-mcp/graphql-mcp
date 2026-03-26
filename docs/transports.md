@@ -39,6 +39,7 @@ All messages use JSON-RPC 2.0:
 | `initialize` | Capability negotiation |
 | `tools/list` | List all available tools |
 | `catalog/list` | Return grouped discovery metadata for published tools |
+| `capabilities/catalog` | Alias for `catalog/list` |
 | `tools/call` | Execute a tool |
 | `ping` | Health check |
 
@@ -92,15 +93,28 @@ All messages use JSON-RPC 2.0:
     "domainCount": 2,
     "toolCount": 4,
     "domains": [
-      {
-        "domain": "book",
-        "categories": ["Book"],
-        "tags": ["book", "query"],
-        "toolCount": 2,
-        "toolNames": ["get_book", "list_books"]
-      }
-    ]
+        {
+          "domain": "book",
+          "categories": ["Book"],
+          "tags": ["book", "query"],
+          "semanticHints": {
+            "intents": ["retrieve"],
+            "keywords": ["book", "query"]
+          },
+          "toolCount": 2,
+          "toolNames": ["get_book", "list_books"]
+        }
+      ]
+    }
   }
+  ```
+
+`tools/list` and `catalog/list` tool entries also include additive semantic hints:
+
+```json
+{
+  "intent": "retrieve",
+  "keywords": ["book", "id", "query"]
 }
 ```
 

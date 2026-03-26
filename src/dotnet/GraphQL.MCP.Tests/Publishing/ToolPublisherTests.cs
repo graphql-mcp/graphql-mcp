@@ -80,6 +80,27 @@ public class ToolPublisherTests
 
         tools[0].Category.Should().Be("User");
         tools[0].Tags.Should().Contain(["query", "user"]);
+        tools[0].SemanticHints.Intent.Should().Be("retrieve");
+        tools[0].SemanticHints.Keywords.Should().Contain(["query", "user"]);
+    }
+
+    [Fact]
+    public void Should_publish_semantic_hints_for_discovery_clients()
+    {
+        var sut = CreateSut();
+        var op = new CanonicalOperation
+        {
+            Name = "getAllUsers",
+            GraphQLFieldName = "getAllUsers",
+            Description = "Fetch users",
+            OperationType = OperationType.Query,
+            ReturnType = new CanonicalType { Name = "User", Kind = TypeKind.Object }
+        };
+
+        var tools = sut.Publish([op]);
+
+        tools[0].SemanticHints.Intent.Should().Be("retrieve");
+        tools[0].SemanticHints.Keywords.Should().Contain(["query", "user"]);
     }
 
     [Fact]
@@ -101,14 +122,66 @@ public class ToolPublisherTests
     }
 
     [Fact]
-    public void Should_infer_domain_grouping_from_field_names_for_scalar_tools()
+    public void Should_infer_domain_grouping_from_plural_field_names_for_scalar_tools()
     {
         var sut = CreateSut();
-        var op = CreateQueryOp("healthCheck");
+        var op = CreateQueryOp("getAllUsers");
 
         var tools = sut.Publish([op]);
 
-        tools[0].Domain.Should().Be("health");
+        tools[0].Domain.Should().Be("user");
+    }
+
+    [Fact]
+    public void Should_strip_structural_suffixes_when_inferring_domain_from_return_types()
+    {
+        var sut = CreateSut();
+        var op = new CanonicalOperation
+        {
+            Name = "ordersConnection",
+            GraphQLFieldName = "ordersConnection",
+            OperationType = OperationType.Query,
+            ReturnType = new CanonicalType
+            {
+                Name = "OrderConnection",
+                Kind = TypeKind.Object,
+                Fields =
+                [
+                    new CanonicalField
+                    {
+                        Name = "edges",
+                        Type = new CanonicalType { Name = "String", Kind = TypeKind.Scalar }
+                    }
+                ]
+            }
+        };
+
+        var tools = sut.Publish([op]);
+
+        tools[0].Domain.Should().Be("order");
+    }
+
+    [Fact]
+    public void Should_infer_domain_and_semantic_hints_from_structured_field_names()
+    {
+        var sut = CreateSut();
+        var op = CreateQueryOp(
+            "apiUsersConnection",
+            "List API users",
+            [
+                new CanonicalArgument
+                {
+                    Name = "tenantId",
+                    Description = "Tenant identifier",
+                    Type = new CanonicalType { Name = "ID", Kind = TypeKind.Scalar }
+                }
+            ]);
+
+        var tools = sut.Publish([op]);
+
+        tools[0].Domain.Should().Be("user");
+        tools[0].SemanticHints.Intent.Should().Be("list");
+        tools[0].SemanticHints.Keywords.Should().Contain(["api", "query", "tenant", "user"]);
     }
 
     [Fact]

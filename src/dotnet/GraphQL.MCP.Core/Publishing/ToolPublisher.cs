@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using GraphQL.MCP.Abstractions;
 using GraphQL.MCP.Abstractions.Canonical;
 using GraphQL.MCP.Abstractions.Policy;
@@ -58,6 +59,7 @@ public sealed class ToolPublisher
             var category = InferCategory(op);
             var domain = InferDomain(op, category);
             var tags = BuildTags(op, category, domain);
+            var semanticHints = BuildSemanticHints(op, category, domain);
 
             var descriptor = new McpToolDescriptor
             {
@@ -66,6 +68,7 @@ public sealed class ToolPublisher
                 Category = category,
                 Domain = domain,
                 Tags = tags,
+                SemanticHints = semanticHints,
                 InputSchema = inputSchema,
                 GraphQLQuery = graphqlQuery,
                 OperationType = op.OperationType,
@@ -318,6 +321,70 @@ public sealed class ToolPublisher
         return tags.OrderBy(tag => tag, StringComparer.Ordinal).ToArray();
     }
 
+    private static McpSemanticHints BuildSemanticHints(CanonicalOperation op, string? category, string domain)
+    {
+        var intent = InferIntent(op);
+        var keywords = BuildKeywords(op, category, domain);
+
+        return new McpSemanticHints
+        {
+            Intent = intent,
+            Keywords = keywords
+        };
+    }
+
+    private static string InferIntent(CanonicalOperation op)
+    {
+        var action = GetActionWord(op);
+        return action switch
+        {
+            "list" => "list",
+            "search" or "find" => "search",
+            "count" => "count",
+            "create" or "add" or "new" => "create",
+            "update" or "set" or "modify" or "patch" or "edit" => "update",
+            "delete" or "remove" or "archive" or "drop" => "delete",
+            "upsert" or "replace" => "upsert",
+            "fetch" or "get" or "lookup" or "read" or "show" or "load" or "view" or "return" => "retrieve",
+            _ => op.OperationType == OperationType.Query ? "retrieve" : "write"
+        };
+    }
+
+    private static IReadOnlyList<string> BuildKeywords(CanonicalOperation op, string? category, string domain)
+    {
+        var keywords = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            op.OperationType.ToString().ToLowerInvariant()
+        };
+
+        AddNormalizedKeywords(keywords, op.GraphQLFieldName);
+        AddNormalizedKeywords(keywords, op.Name);
+        AddNormalizedKeywords(keywords, category);
+        AddNormalizedKeywords(keywords, domain);
+        AddNormalizedKeywords(keywords, op.Description);
+
+        foreach (var argument in op.Arguments)
+        {
+            AddNormalizedKeywords(keywords, argument.Name);
+            AddNormalizedKeywords(keywords, argument.Description);
+        }
+
+        return keywords.OrderBy(keyword => keyword, StringComparer.Ordinal).ToArray();
+    }
+
+    private static void AddNormalizedKeywords(HashSet<string> keywords, string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return;
+        }
+
+        foreach (var token in NormalizeTokens(value, stripLeadingNoise: false, stripTrailingStructural: false))
+        {
+            keywords.Add(token);
+        }
+    }
+
     private static CanonicalType GetInnermostType(CanonicalType type)
     {
         var current = type;
@@ -331,67 +398,186 @@ public sealed class ToolPublisher
 
     private static string NormalizeDomainName(string value)
     {
-        var tokens = SplitIdentifier(value);
+        var tokens = NormalizeTokens(value, stripLeadingNoise: true, stripTrailingStructural: true);
         if (tokens.Count == 0)
         {
             return "general";
         }
 
-        if (tokens.Count > 1 && VerbPrefixes.Contains(tokens[0]))
+        foreach (var token in tokens)
         {
-            tokens.RemoveAt(0);
+            if (!GenericDomainTokens.Contains(token))
+            {
+                return token;
+            }
         }
 
+        return "general";
+    }
+
+    private static List<string> NormalizeTokens(
+        string value,
+        bool stripLeadingNoise,
+        bool stripTrailingStructural)
+    {
+        var tokens = SplitIdentifier(value);
         if (tokens.Count == 0)
         {
-            tokens.Add(value);
+            return [];
         }
 
-        return tokens[0].ToLowerInvariant();
+        tokens = MergeCompoundTokens(tokens);
+        var normalized = tokens.Select(SingularizeToken).ToList();
+
+        if (stripLeadingNoise)
+        {
+            while (normalized.Count > 0 &&
+                (NoiseTokens.Contains(normalized[0]) || VerbPrefixes.Contains(normalized[0])))
+            {
+                normalized.RemoveAt(0);
+            }
+        }
+
+        if (stripTrailingStructural)
+        {
+            while (normalized.Count > 0 && StructuralSuffixTokens.Contains(normalized[^1]))
+            {
+                normalized.RemoveAt(normalized.Count - 1);
+            }
+        }
+
+        return normalized;
     }
 
     private static List<string> SplitIdentifier(string value)
     {
-        var tokens = new List<string>();
-        var current = new System.Text.StringBuilder();
-
-        void Flush()
+        var matches = IdentifierTokenRegex().Matches(value);
+        if (matches.Count == 0)
         {
-            if (current.Length > 0)
+            return [];
+        }
+
+        var tokens = new List<string>(matches.Count);
+        foreach (Match match in matches)
+        {
+            if (!string.IsNullOrWhiteSpace(match.Value))
             {
-                tokens.Add(current.ToString());
-                current.Clear();
+                tokens.Add(match.Value);
             }
         }
 
-        for (var index = 0; index < value.Length; index++)
+        return tokens;
+    }
+
+    private static List<string> MergeCompoundTokens(List<string> tokens)
+    {
+        if (tokens.Count < 2)
         {
-            var c = value[index];
-            if (!char.IsLetterOrDigit(c))
+            return tokens;
+        }
+
+        var merged = new List<string>(tokens.Count);
+        for (var index = 0; index < tokens.Count; index++)
+        {
+            var current = tokens[index];
+            if (index < tokens.Count - 1 &&
+                CompoundTokenSuffixes.TryGetValue(current, out var suffixes) &&
+                suffixes.Contains(tokens[index + 1]))
             {
-                Flush();
+                merged.Add(current + tokens[index + 1]);
+                index++;
                 continue;
             }
 
-            if (current.Length > 0)
-            {
-                var previous = current[current.Length - 1];
-                var boundary =
-                    (char.IsLower(previous) && char.IsUpper(c)) ||
-                    (char.IsLetter(previous) && char.IsDigit(c)) ||
-                    (char.IsDigit(previous) && char.IsLetter(c));
-
-                if (boundary)
-                {
-                    Flush();
-                }
-            }
-
-            current.Append(c);
+            merged.Add(current);
         }
 
-        Flush();
-        return tokens;
+        return merged;
+    }
+
+    private static string SingularizeToken(string token)
+    {
+        var lower = token.ToLowerInvariant();
+
+        if (lower.Length <= 3)
+        {
+            return lower;
+        }
+
+        if (IrregularSingulars.TryGetValue(lower, out var singular))
+        {
+            return singular;
+        }
+
+        if (UnsingularizableTokens.Contains(lower))
+        {
+            return lower;
+        }
+
+        if (lower.EndsWith("ies", StringComparison.Ordinal) && lower.Length > 3)
+        {
+            return lower[..^3] + "y";
+        }
+
+        if (lower.EndsWith("ches", StringComparison.Ordinal) ||
+            lower.EndsWith("shes", StringComparison.Ordinal) ||
+            lower.EndsWith("xes", StringComparison.Ordinal) ||
+            lower.EndsWith("zes", StringComparison.Ordinal) ||
+            lower.EndsWith("ses", StringComparison.Ordinal))
+        {
+            return lower[..^2];
+        }
+
+        if (lower.EndsWith("s", StringComparison.Ordinal) &&
+            !lower.EndsWith("ss", StringComparison.Ordinal) &&
+            !lower.EndsWith("us", StringComparison.Ordinal) &&
+            !lower.EndsWith("is", StringComparison.Ordinal) &&
+            !lower.EndsWith("ics", StringComparison.Ordinal))
+        {
+            return lower[..^1];
+        }
+
+        return lower;
+    }
+
+    private static string GetActionWord(CanonicalOperation op)
+    {
+        var tokens = SplitIdentifier(op.GraphQLFieldName);
+        if (tokens.Count > 0)
+        {
+            var first = tokens[0];
+            if (QueryActionMap.TryGetValue(first, out var mappedQueryAction) &&
+                op.OperationType == OperationType.Query)
+            {
+                return mappedQueryAction;
+            }
+
+            if (MutationActionWords.Contains(first))
+            {
+                return first.ToLowerInvariant();
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(op.Description))
+        {
+            var descriptionTokens = SplitIdentifier(op.Description);
+            if (descriptionTokens.Count > 0)
+            {
+                var firstDescriptionToken = descriptionTokens[0];
+                if (QueryActionMap.TryGetValue(firstDescriptionToken, out var mappedDescriptionAction) &&
+                    op.OperationType == OperationType.Query)
+                {
+                    return mappedDescriptionAction;
+                }
+
+                if (MutationActionWords.Contains(firstDescriptionToken))
+                {
+                    return firstDescriptionToken.ToLowerInvariant();
+                }
+            }
+        }
+
+        return op.OperationType == OperationType.Query ? "fetch" : "modify";
     }
 
     private string BuildGraphQLQuery(CanonicalOperation op)
@@ -529,4 +715,124 @@ public sealed class ToolPublisher
         "replace",
         "count"
     };
+
+    private static readonly HashSet<string> NoiseTokens = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "all",
+        "any",
+        "each",
+        "every",
+        "the",
+        "a",
+        "an",
+        "and",
+        "or",
+        "by",
+        "for",
+        "from",
+        "in",
+        "of",
+        "on",
+        "to",
+        "with",
+        "via",
+        "query",
+        "mutation"
+    };
+
+    private static readonly HashSet<string> GenericDomainTokens = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "api",
+        "apis",
+        "graphql",
+        "platform",
+        "service",
+        "services",
+        "system",
+        "systems"
+    };
+
+    private static readonly HashSet<string> StructuralSuffixTokens = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "collection",
+        "connection",
+        "data",
+        "edge",
+        "edges",
+        "item",
+        "items",
+        "list",
+        "node",
+        "nodes",
+        "page",
+        "pages",
+        "payload",
+        "payloads",
+        "record",
+        "records",
+        "response",
+        "responses",
+        "result",
+        "results",
+        "resource",
+        "resources",
+        "viewer"
+    };
+
+    private static readonly HashSet<string> MutationActionWords = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "add",
+        "create",
+        "delete",
+        "patch",
+        "put",
+        "remove",
+        "replace",
+        "set",
+        "update",
+        "upsert"
+    };
+
+    private static readonly Dictionary<string, string> QueryActionMap = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["fetch"] = "fetch",
+        ["find"] = "search",
+        ["get"] = "fetch",
+        ["list"] = "list",
+        ["search"] = "search",
+        ["count"] = "count"
+    };
+
+    private static readonly Dictionary<string, HashSet<string>> CompoundTokenSuffixes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["Graph"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "QL" },
+        ["Open"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "API" }
+    };
+
+    private static readonly Dictionary<string, string> IrregularSingulars = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["children"] = "child",
+        ["data"] = "data",
+        ["feet"] = "foot",
+        ["geese"] = "goose",
+        ["indices"] = "index",
+        ["men"] = "man",
+        ["people"] = "person",
+        ["series"] = "series",
+        ["species"] = "species",
+        ["teeth"] = "tooth",
+        ["women"] = "woman"
+    };
+
+    private static readonly HashSet<string> UnsingularizableTokens = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "analysis",
+        "business",
+        "status"
+    };
+
+    private static readonly Regex IdentifierTokenPattern =
+        new(@"[A-Z]+(?=$|[A-Z][a-z]|\d)|[A-Z]?[a-z]+|\d+", RegexOptions.Compiled);
+
+    private static Regex IdentifierTokenRegex() => IdentifierTokenPattern;
 }

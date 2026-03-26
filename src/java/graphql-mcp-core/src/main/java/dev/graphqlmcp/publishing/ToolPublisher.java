@@ -15,6 +15,46 @@ import java.util.*;
  */
 public class ToolPublisher {
 
+  private static final String GENERAL_DOMAIN = "general";
+
+  private static final Set<String> ACTION_PREFIXES =
+      Set.of(
+          "get", "list", "fetch", "find", "search", "create", "update", "delete", "remove", "add",
+          "set", "count", "read", "lookup", "show", "load", "modify", "patch", "replace", "archive",
+          "upsert", "view", "new", "return");
+
+  private static final Set<String> STOP_WORDS =
+      Set.of("by", "for", "from", "with", "within", "in", "of", "on", "at", "via", "using");
+
+  private static final Set<String> STRUCTURAL_SUFFIXES =
+      Set.of(
+          "connection",
+          "connections",
+          "edge",
+          "edges",
+          "node",
+          "nodes",
+          "payload",
+          "payloads",
+          "response",
+          "responses",
+          "result",
+          "results",
+          "list",
+          "lists",
+          "page",
+          "pages",
+          "data",
+          "item",
+          "items",
+          "collection",
+          "collections",
+          "viewer",
+          "viewers");
+
+  private static final Set<String> GENERIC_DOMAIN_TOKENS =
+      Set.of("api", "graphql", "service", "services", "endpoint", "endpoints", "core");
+
   private final GraphQLToMCPToolMapper mapper;
   private final GraphQLMCPConfig config;
 
@@ -27,7 +67,6 @@ public class ToolPublisher {
   public List<ToolDescriptor> publish(List<CanonicalOperation> operations, GraphQLSchema schema) {
     List<MCPToolDescriptor> mcpTools = mapper.map(operations);
 
-    // Build a lookup from graphQLFieldName to canonical operation
     Map<String, CanonicalOperation> opLookup = new HashMap<>();
     for (CanonicalOperation op : operations) {
       opLookup.put(op.graphQLFieldName(), op);
@@ -36,13 +75,16 @@ public class ToolPublisher {
     List<ToolDescriptor> result = new ArrayList<>();
     for (MCPToolDescriptor mcpTool : mcpTools) {
       CanonicalOperation op = opLookup.get(mcpTool.graphQLFieldName());
-      if (op == null) continue;
+      if (op == null) {
+        continue;
+      }
 
       Map<String, Object> inputSchema = buildInputSchema(op);
       String graphQLQuery = buildGraphQLQuery(op, schema);
       Map<String, String> argumentMapping = buildArgumentMapping(op);
       String domainGroup = buildDomainGroup(op, schema);
       List<String> tags = mergeTags(mcpTool.tags(), domainGroup);
+      ToolDescriptor.SemanticHints semanticHints = buildSemanticHints(op, domainGroup);
 
       result.add(
           new ToolDescriptor(
@@ -55,7 +97,8 @@ public class ToolPublisher {
               mcpTool.graphQLFieldName(),
               mcpTool.operationType(),
               argumentMapping,
-              domainGroup));
+              domainGroup,
+              semanticHints));
     }
     return List.copyOf(result);
   }
@@ -69,7 +112,7 @@ public class ToolPublisher {
 
     for (CanonicalArgument arg : op.arguments()) {
       Map<String, Object> prop = new LinkedHashMap<>();
-      prop.put("type", "string"); // simplified — all args as string for now
+      prop.put("type", "string");
       if (arg.description() != null) {
         prop.put("description", arg.description());
       }
@@ -100,18 +143,24 @@ public class ToolPublisher {
     GraphQLFieldDefinition fieldDef =
         rootType != null ? rootType.getFieldDefinition(op.graphQLFieldName()) : null;
 
-    if (fieldDef == null) {
-      return normalizeDomainName(op.graphQLFieldName());
+    if (fieldDef != null) {
+      GraphQLType unwrapped = GraphQLTypeUtil.unwrapAll(fieldDef.getType());
+      if (unwrapped instanceof GraphQLObjectType
+          || unwrapped instanceof GraphQLInterfaceType
+          || unwrapped instanceof GraphQLUnionType) {
+        String fromType = inferDomainGroup(((GraphQLNamedType) unwrapped).getName());
+        if (!GENERAL_DOMAIN.equals(fromType)) {
+          return fromType;
+        }
+      }
     }
 
-    GraphQLType unwrapped = GraphQLTypeUtil.unwrapAll(fieldDef.getType());
-    if (unwrapped instanceof GraphQLObjectType
-        || unwrapped instanceof GraphQLInterfaceType
-        || unwrapped instanceof GraphQLUnionType) {
-      return normalizeDomainName(((GraphQLNamedType) unwrapped).getName());
+    String fromField = inferDomainGroup(op.graphQLFieldName());
+    if (!GENERAL_DOMAIN.equals(fromField)) {
+      return fromField;
     }
 
-    return normalizeDomainName(op.graphQLFieldName());
+    return GENERAL_DOMAIN;
   }
 
   private List<String> mergeTags(List<String> tags, String domainGroup) {
@@ -123,27 +172,137 @@ public class ToolPublisher {
     return List.copyOf(merged);
   }
 
-  private String normalizeDomainName(String value) {
+  private String inferDomainGroup(String value) {
+    List<String> tokens = meaningfulTokens(value);
+    if (tokens.isEmpty()) {
+      return GENERAL_DOMAIN;
+    }
+
+    for (int index = tokens.size() - 1; index >= 0; index--) {
+      String token = tokens.get(index);
+      if (!GENERIC_DOMAIN_TOKENS.contains(token)) {
+        return singularize(token);
+      }
+    }
+
+    return GENERAL_DOMAIN;
+  }
+
+  private ToolDescriptor.SemanticHints buildSemanticHints(
+      CanonicalOperation op, String domainGroup) {
+    String intent = inferIntent(op);
+    List<String> keywords = buildKeywords(op, domainGroup);
+    return new ToolDescriptor.SemanticHints(intent, keywords);
+  }
+
+  private String inferIntent(CanonicalOperation op) {
+    String action = firstActionToken(op.graphQLFieldName());
+    if (action == null && op.description() != null) {
+      action = firstActionToken(op.description());
+    }
+
+    if (action != null) {
+      return switch (action) {
+        case "list" -> "list";
+        case "search" -> "search";
+        case "count" -> "count";
+        case "create", "add", "new" -> "create";
+        case "update", "set", "modify", "patch", "edit" -> "update";
+        case "delete", "remove", "archive", "drop" -> "delete";
+        case "upsert", "replace" -> "upsert";
+        case "get", "fetch", "find", "lookup", "read", "show", "load", "view", "return" ->
+            "retrieve";
+        default -> defaultIntent(op.operationType());
+      };
+    }
+
+    return defaultIntent(op.operationType());
+  }
+
+  private String defaultIntent(OperationType type) {
+    return type == OperationType.QUERY ? "retrieve" : "write";
+  }
+
+  private String firstActionToken(String value) {
     List<String> tokens = splitIdentifier(value);
     if (tokens.isEmpty()) {
-      return "general";
+      return null;
     }
 
-    if (tokens.size() > 1 && VERB_PREFIXES.contains(tokens.get(0).toLowerCase(Locale.ROOT))) {
-      tokens = tokens.subList(1, tokens.size());
+    String normalized = normalizeToken(tokens.get(0));
+    return ACTION_PREFIXES.contains(normalized) ? normalized : null;
+  }
+
+  private List<String> buildKeywords(CanonicalOperation op, String domainGroup) {
+    Set<String> keywords = new LinkedHashSet<>();
+    addKeywords(keywords, domainGroup);
+    addKeywords(keywords, op.operationType().name().toLowerCase(Locale.ROOT));
+    addKeywords(keywords, op.graphQLFieldName());
+    for (CanonicalArgument arg : op.arguments()) {
+      addKeywords(keywords, arg.name());
+    }
+    return List.copyOf(keywords);
+  }
+
+  private void addKeywords(Set<String> keywords, String value) {
+    for (String token : keywordTokens(value)) {
+      if (!token.isBlank() && !GENERAL_DOMAIN.equals(token)) {
+        keywords.add(token);
+      }
+    }
+  }
+
+  private List<String> keywordTokens(String value) {
+    List<String> tokens = new ArrayList<>();
+    for (String token : splitIdentifier(value)) {
+      String normalized = normalizeToken(token);
+      if (normalized.isBlank()
+          || ACTION_PREFIXES.contains(normalized)
+          || STOP_WORDS.contains(normalized)
+          || STRUCTURAL_SUFFIXES.contains(normalized)) {
+        continue;
+      }
+      tokens.add(singularize(normalized));
+    }
+    return tokens;
+  }
+
+  private List<String> meaningfulTokens(String value) {
+    List<String> tokens = new ArrayList<>();
+    for (String token : splitIdentifier(value)) {
+      String normalized = normalizeToken(token);
+      if (!normalized.isBlank()) {
+        tokens.add(normalized);
+      }
     }
 
-    if (tokens.isEmpty()) {
-      return "general";
+    while (!tokens.isEmpty() && ACTION_PREFIXES.contains(tokens.get(0))) {
+      tokens.remove(0);
     }
 
-    return tokens.get(0).toLowerCase(Locale.ROOT);
+    int stopIndex = tokens.size();
+    for (int index = 0; index < tokens.size(); index++) {
+      if (STOP_WORDS.contains(tokens.get(index))) {
+        stopIndex = index;
+        break;
+      }
+    }
+    tokens = new ArrayList<>(tokens.subList(0, stopIndex));
+
+    while (!tokens.isEmpty() && STRUCTURAL_SUFFIXES.contains(tokens.get(tokens.size() - 1))) {
+      tokens.remove(tokens.size() - 1);
+    }
+
+    return tokens;
   }
 
   private List<String> splitIdentifier(String value) {
     List<String> tokens = new ArrayList<>();
-    StringBuilder current = new StringBuilder();
+    if (value == null || value.isBlank()) {
+      return tokens;
+    }
 
+    StringBuilder current = new StringBuilder();
     Runnable flush =
         () -> {
           if (!current.isEmpty()) {
@@ -161,10 +320,14 @@ public class ToolPublisher {
 
       if (!current.isEmpty()) {
         char previous = current.charAt(current.length() - 1);
+        char next = index + 1 < value.length() ? value.charAt(index + 1) : '\0';
         boolean boundary =
             (Character.isLowerCase(previous) && Character.isUpperCase(c))
                 || (Character.isLetter(previous) && Character.isDigit(c))
-                || (Character.isDigit(previous) && Character.isLetter(c));
+                || (Character.isDigit(previous) && Character.isLetter(c))
+                || (Character.isUpperCase(previous)
+                    && Character.isUpperCase(c)
+                    && Character.isLowerCase(next));
 
         if (boundary) {
           flush.run();
@@ -176,6 +339,36 @@ public class ToolPublisher {
 
     flush.run();
     return tokens;
+  }
+
+  private String normalizeToken(String token) {
+    return token == null ? "" : token.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]", "");
+  }
+
+  private String singularize(String token) {
+    if (token.length() <= 3) {
+      return token;
+    }
+    if (token.endsWith("ies")) {
+      return token.substring(0, token.length() - 3) + "y";
+    }
+    if (token.endsWith("sses")
+        || token.endsWith("shes")
+        || token.endsWith("ches")
+        || token.endsWith("xes")
+        || token.endsWith("zes")) {
+      return token.substring(0, token.length() - 2);
+    }
+    if (token.endsWith("ses") && !token.endsWith("uses")) {
+      return token.substring(0, token.length() - 2);
+    }
+    if (token.endsWith("s")
+        && !token.endsWith("ss")
+        && !token.endsWith("us")
+        && !token.endsWith("is")) {
+      return token.substring(0, token.length() - 1);
+    }
+    return token;
   }
 
   private String buildGraphQLQuery(CanonicalOperation op, GraphQLSchema schema) {
@@ -212,7 +405,6 @@ public class ToolPublisher {
       fieldArgs.append("(").append(String.join(", ", argParts)).append(")");
     }
 
-    // Build selection set
     String selectionSet = "";
     GraphQLObjectType rootType =
         op.operationType() == OperationType.QUERY
@@ -241,14 +433,20 @@ public class ToolPublisher {
     }
 
     if (unwrapped instanceof GraphQLObjectType objType) {
-      if (visited.contains(objType.getName())) return "";
+      if (visited.contains(objType.getName())) {
+        return "";
+      }
       Set<String> nextVisited = new HashSet<>(visited);
       nextVisited.add(objType.getName());
 
       List<String> fields = new ArrayList<>();
       for (GraphQLFieldDefinition field : objType.getFieldDefinitions()) {
-        if (field.getName().startsWith("__")) continue;
-        if (config.excludedFields().contains(field.getName())) continue;
+        if (field.getName().startsWith("__")) {
+          continue;
+        }
+        if (config.excludedFields().contains(field.getName())) {
+          continue;
+        }
 
         String inner = buildSelectionSet(field.getType(), depth - 1, nextVisited);
         fields.add(field.getName() + inner);
@@ -257,15 +455,21 @@ public class ToolPublisher {
     }
 
     if (unwrapped instanceof GraphQLInterfaceType ifaceType) {
-      if (visited.contains(ifaceType.getName())) return "";
+      if (visited.contains(ifaceType.getName())) {
+        return "";
+      }
       Set<String> nextVisited = new HashSet<>(visited);
       nextVisited.add(ifaceType.getName());
 
       List<String> fields = new ArrayList<>();
       fields.add("__typename");
       for (GraphQLFieldDefinition field : ifaceType.getFieldDefinitions()) {
-        if (field.getName().startsWith("__")) continue;
-        if (config.excludedFields().contains(field.getName())) continue;
+        if (field.getName().startsWith("__")) {
+          continue;
+        }
+        if (config.excludedFields().contains(field.getName())) {
+          continue;
+        }
 
         String inner = buildSelectionSet(field.getType(), depth - 1, nextVisited);
         fields.add(field.getName() + inner);
@@ -274,7 +478,9 @@ public class ToolPublisher {
     }
 
     if (unwrapped instanceof GraphQLUnionType unionType) {
-      if (visited.contains(unionType.getName())) return "";
+      if (visited.contains(unionType.getName())) {
+        return "";
+      }
       Set<String> nextVisited = new HashSet<>(visited);
       nextVisited.add(unionType.getName());
 
@@ -312,9 +518,4 @@ public class ToolPublisher {
     }
     return mapping;
   }
-
-  private static final Set<String> VERB_PREFIXES =
-      Set.of(
-          "get", "list", "fetch", "find", "search", "create", "update", "delete", "remove", "add",
-          "set", "count");
 }

@@ -34,6 +34,11 @@ public sealed class McpToolDescriptor
     public IReadOnlyList<string> Tags { get; init; } = [];
 
     /// <summary>
+    /// Optional semantic hints that help clients rank and present the tool.
+    /// </summary>
+    public McpSemanticHints SemanticHints { get; init; } = new();
+
+    /// <summary>
     /// JSON Schema describing the tool's input parameters.
     /// </summary>
     public required JsonDocument InputSchema { get; init; }
@@ -57,4 +62,20 @@ public sealed class McpToolDescriptor
     /// Maps MCP tool argument names to GraphQL variable names.
     /// </summary>
     public IReadOnlyDictionary<string, string> ArgumentMapping { get; init; } = new Dictionary<string, string>();
+}
+
+/// <summary>
+/// Additive semantic metadata for discovery UIs and ranking.
+/// </summary>
+public sealed class McpSemanticHints
+{
+    /// <summary>
+    /// Short human-readable description of the tool's likely intent.
+    /// </summary>
+    public string Intent { get; init; } = "";
+
+    /// <summary>
+    /// Normalized keywords that describe the tool and its subject.
+    /// </summary>
+    public IReadOnlyList<string> Keywords { get; init; } = [];
 }
