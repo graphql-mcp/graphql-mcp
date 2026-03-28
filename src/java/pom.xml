@@ -52,7 +52,7 @@
         <graphql-java.version>25.0</graphql-java.version>
         <maven.surefire.version>3.2.5</maven.surefire.version>
         <jacoco.version>0.8.12</jacoco.version>
-        <spotless.version>2.43.0</spotless.version>
+        <spotless.version>3.4.0</spotless.version>
         <google-java-format.version>1.22.0</google-java-format.version>
     </properties>
 
