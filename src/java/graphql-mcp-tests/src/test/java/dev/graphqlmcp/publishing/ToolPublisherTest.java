@@ -26,10 +26,14 @@ class ToolPublisherTest {
                 GraphQLToMCPToolMapper.NamingPolicy.VERB_NOUN,
                 false,
                 Set.of("secretNote"),
+                Set.of(),
+                Set.of(),
                 3,
                 10,
                 false,
-                25));
+                0,
+                25,
+                75));
     ToolPublisher publisher = new ToolPublisher(mapper, mapperConfig());
 
     List<ToolDescriptor> tools = publisher.publish(introspector.introspect(schema), schema);
@@ -70,7 +74,18 @@ class ToolPublisherTest {
     GraphQLToMCPToolMapper mapper =
         new GraphQLToMCPToolMapper(
             new GraphQLToMCPToolMapper.GraphQLMCPConfig(
-                null, GraphQLToMCPToolMapper.NamingPolicy.RAW, true, Set.of(), 3, 10, false, 25));
+                null,
+                GraphQLToMCPToolMapper.NamingPolicy.RAW,
+                true,
+                Set.of(),
+                Set.of(),
+                Set.of(),
+                3,
+                10,
+                false,
+                0,
+                25,
+                75));
     ToolPublisher publisher = new ToolPublisher(mapper, mapperConfig());
 
     List<ToolDescriptor> tools = publisher.publish(introspector.introspect(schema), schema);
@@ -109,7 +124,18 @@ class ToolPublisherTest {
     GraphQLToMCPToolMapper mapper =
         new GraphQLToMCPToolMapper(
             new GraphQLToMCPToolMapper.GraphQLMCPConfig(
-                null, GraphQLToMCPToolMapper.NamingPolicy.RAW, false, Set.of(), 3, 10, false, 25));
+                null,
+                GraphQLToMCPToolMapper.NamingPolicy.RAW,
+                false,
+                Set.of(),
+                Set.of(),
+                Set.of(),
+                3,
+                10,
+                false,
+                0,
+                25,
+                75));
     ToolPublisher publisher = new ToolPublisher(mapper, mapperConfig());
 
     ToolDescriptor tool = publisher.publish(introspector.introspect(schema), schema).get(0);
@@ -120,15 +146,77 @@ class ToolPublisherTest {
     assertTrue(tool.semanticHints().keywords().contains("user"));
   }
 
+  @Test
+  void applies_domain_allowlist_before_publishing_tools() {
+    GraphQLSchema schema = TestSchemas.createSchema();
+    GraphQLSchemaIntrospector introspector = new GraphQLSchemaIntrospector();
+    GraphQLToMCPToolMapper mapper =
+        new GraphQLToMCPToolMapper(
+            new GraphQLToMCPToolMapper.GraphQLMCPConfig(
+                "api",
+                GraphQLToMCPToolMapper.NamingPolicy.VERB_NOUN,
+                false,
+                Set.of("secretNote"),
+                Set.of("book"),
+                Set.of(),
+                3,
+                10,
+                false,
+                0,
+                25,
+                75));
+    ToolPublisher publisher = new ToolPublisher(mapper, mapperConfig("book", Set.of(), 75));
+
+    List<ToolDescriptor> tools = publisher.publish(introspector.introspect(schema), schema);
+
+    assertEquals(1, tools.size());
+    assertEquals("book", tools.get(0).domainGroup());
+  }
+
+  @Test
+  void skips_tools_when_argument_complexity_exceeds_limit() {
+    GraphQLSchema schema = TestSchemas.createSchema();
+    GraphQLSchemaIntrospector introspector = new GraphQLSchemaIntrospector();
+    GraphQLToMCPToolMapper mapper =
+        new GraphQLToMCPToolMapper(
+            new GraphQLToMCPToolMapper.GraphQLMCPConfig(
+                "api",
+                GraphQLToMCPToolMapper.NamingPolicy.VERB_NOUN,
+                false,
+                Set.of("secretNote"),
+                Set.of("book"),
+                Set.of(),
+                3,
+                10,
+                false,
+                0,
+                25,
+                1));
+    ToolPublisher publisher = new ToolPublisher(mapper, mapperConfig("book", Set.of(), 1));
+
+    List<ToolDescriptor> tools = publisher.publish(introspector.introspect(schema), schema);
+
+    assertTrue(tools.isEmpty());
+  }
+
   private static GraphQLToMCPToolMapper.GraphQLMCPConfig mapperConfig() {
+    return mapperConfig(null, Set.of(), 75);
+  }
+
+  private static GraphQLToMCPToolMapper.GraphQLMCPConfig mapperConfig(
+      String includedDomain, Set<String> excludedDomains, int maxArgumentComplexity) {
     return new GraphQLToMCPToolMapper.GraphQLMCPConfig(
         "api",
         GraphQLToMCPToolMapper.NamingPolicy.VERB_NOUN,
         false,
         Set.of("secretNote"),
+        includedDomain == null ? Set.of() : Set.of(includedDomain),
+        excludedDomains,
         3,
         10,
         false,
-        25);
+        0,
+        25,
+        maxArgumentComplexity);
   }
 }

@@ -23,10 +23,14 @@ class GraphQLToMCPToolMapperTest {
                 GraphQLToMCPToolMapper.NamingPolicy.VERB_NOUN,
                 false,
                 Set.of(),
+                Set.of(),
+                Set.of(),
                 3,
                 10,
                 false,
-                25));
+                0,
+                25,
+                75));
 
     List<GraphQLToMCPToolMapper.MCPToolDescriptor> tools = mapper.map(operations);
 
@@ -53,10 +57,14 @@ class GraphQLToMCPToolMapperTest {
                 GraphQLToMCPToolMapper.NamingPolicy.RAW,
                 true,
                 Set.of("book"),
+                Set.of(),
+                Set.of(),
                 3,
                 1,
                 false,
-                25));
+                0,
+                25,
+                75));
 
     List<GraphQLToMCPToolMapper.MCPToolDescriptor> tools = mapper.map(operations);
 
@@ -86,11 +94,47 @@ class GraphQLToMCPToolMapperTest {
     GraphQLToMCPToolMapper mapper =
         new GraphQLToMCPToolMapper(
             new GraphQLToMCPToolMapper.GraphQLMCPConfig(
-                null, GraphQLToMCPToolMapper.NamingPolicy.RAW, false, Set.of(), 3, 10, true, 1));
+                null,
+                GraphQLToMCPToolMapper.NamingPolicy.RAW,
+                false,
+                Set.of(),
+                Set.of(),
+                Set.of(),
+                3,
+                10,
+                true,
+                0,
+                1,
+                75));
 
     List<GraphQLToMCPToolMapper.MCPToolDescriptor> tools =
         mapper.map(List.of(missingDescription, tooManyArguments));
 
     assertTrue(tools.isEmpty());
+  }
+
+  @Test
+  void respects_minimum_description_length() {
+    GraphQLSchemaIntrospector.CanonicalOperation shortDescription =
+        new GraphQLSchemaIntrospector.CanonicalOperation(
+            "book", "short", GraphQLSchemaIntrospector.OperationType.QUERY, "book", List.of());
+
+    GraphQLToMCPToolMapper mapper =
+        new GraphQLToMCPToolMapper(
+            new GraphQLToMCPToolMapper.GraphQLMCPConfig(
+                null,
+                GraphQLToMCPToolMapper.NamingPolicy.RAW,
+                false,
+                Set.of(),
+                Set.of(),
+                Set.of(),
+                3,
+                10,
+                false,
+                10,
+                25,
+                75));
+
+    assertTrue(mapper.map(List.of(shortDescription)).isEmpty());
   }
 }

@@ -14,12 +14,18 @@ graphql:
     naming-policy: verb-noun
     allow-mutations: false
     require-descriptions: false
+    min-description-length: 0
     excluded-fields:
       - internalData
       - secretNote
+    included-domains:
+      - book
+    excluded-domains:
+      - admin
     max-output-depth: 3
     max-tool-count: 50
     max-argument-count: 25
+    max-argument-complexity: 75
     transport: streamable-http
     authorization:
       mode: passthrough
@@ -36,10 +42,14 @@ These properties are currently bound by [GraphQLMCPProperties.java](/C:/Users/in
 | `graphql.mcp.naming-policy` | `string` | `verb-noun` | Naming style for generated tools |
 | `graphql.mcp.allow-mutations` | `boolean` | `false` | Publishes mutation tools when enabled |
 | `graphql.mcp.require-descriptions` | `boolean` | `false` | Skips operations that do not have descriptions |
+| `graphql.mcp.min-description-length` | `int` | `0` | Skips operations with descriptions shorter than this threshold |
 | `graphql.mcp.excluded-fields` | `list<string>` | `[]` | Field names to exclude from publication and selection sets |
+| `graphql.mcp.included-domains` | `list<string>` | `[]` | Only publish tools from these inferred domains when non-empty |
+| `graphql.mcp.excluded-domains` | `list<string>` | `[]` | Skip tools from these inferred domains |
 | `graphql.mcp.max-output-depth` | `int` | `3` | Max nested selection depth in generated GraphQL queries |
 | `graphql.mcp.max-tool-count` | `int` | `50` | Max number of tools published |
 | `graphql.mcp.max-argument-count` | `int` | `25` | Max argument count allowed for a published tool |
+| `graphql.mcp.max-argument-complexity` | `int` | `75` | Max weighted input complexity allowed for a published tool |
 | `graphql.mcp.transport` | `string` | `streamable-http` | Transport mode; only Streamable HTTP is currently implemented |
 | `graphql.mcp.authorization.mode` | `string` | `none` | Authorization mode; `passthrough` forwards the incoming `Authorization` header |
 
@@ -96,9 +106,9 @@ Requests without a valid session header are rejected.
 ## What Is Not There Yet
 
 - OAuth 2.1 metadata support
-- Java resources/prompts support
 - stdio transport
-- advanced discovery metadata beyond the current category/tag annotations
+- Netflix DGS adapter
+- deeper semantic ranking beyond the current lightweight hint model
 
 ## Related Docs
 

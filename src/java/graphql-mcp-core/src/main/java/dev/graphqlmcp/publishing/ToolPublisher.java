@@ -83,6 +83,12 @@ public class ToolPublisher {
       String graphQLQuery = buildGraphQLQuery(op, schema);
       Map<String, String> argumentMapping = buildArgumentMapping(op);
       String domainGroup = buildDomainGroup(op, schema);
+      if (!shouldIncludeDomain(domainGroup)) {
+        continue;
+      }
+      if (calculateArgumentComplexity(op, schema) > config.maxArgumentComplexity()) {
+        continue;
+      }
       List<String> tags = mergeTags(mcpTool.tags(), domainGroup);
       ToolDescriptor.SemanticHints semanticHints = buildSemanticHints(op, domainGroup);
 
@@ -101,6 +107,17 @@ public class ToolPublisher {
               semanticHints));
     }
     return List.copyOf(result);
+  }
+
+  private boolean shouldIncludeDomain(String domainGroup) {
+    if (!config.includedDomains().isEmpty()
+        && config.includedDomains().stream()
+            .noneMatch(domain -> domain.equalsIgnoreCase(domainGroup))) {
+      return false;
+    }
+
+    return config.excludedDomains().stream()
+        .noneMatch(domain -> domain.equalsIgnoreCase(domainGroup));
   }
 
   private Map<String, Object> buildInputSchema(CanonicalOperation op) {
@@ -161,6 +178,45 @@ public class ToolPublisher {
     }
 
     return GENERAL_DOMAIN;
+  }
+
+  private int calculateArgumentComplexity(CanonicalOperation op, GraphQLSchema schema) {
+    GraphQLObjectType rootType =
+        op.operationType() == OperationType.QUERY
+            ? schema.getQueryType()
+            : schema.getMutationType();
+    GraphQLFieldDefinition fieldDef =
+        rootType != null ? rootType.getFieldDefinition(op.graphQLFieldName()) : null;
+
+    if (fieldDef == null) {
+      return op.arguments().size();
+    }
+
+    int complexity = 0;
+    for (GraphQLArgument argument : fieldDef.getArguments()) {
+      complexity += 1 + calculateTypeComplexity(argument.getType());
+    }
+    return complexity;
+  }
+
+  private int calculateTypeComplexity(GraphQLInputType type) {
+    if (type instanceof GraphQLNonNull nonNull) {
+      return 1 + calculateTypeComplexity((GraphQLInputType) nonNull.getWrappedType());
+    }
+
+    if (type instanceof GraphQLList listType) {
+      return 2 + calculateTypeComplexity((GraphQLInputType) listType.getWrappedType());
+    }
+
+    if (type instanceof GraphQLInputObjectType inputObjectType) {
+      int nested = 0;
+      for (GraphQLInputObjectField field : inputObjectType.getFields()) {
+        nested += 1 + calculateTypeComplexity(field.getType());
+      }
+      return 4 + nested;
+    }
+
+    return 1;
   }
 
   private List<String> mergeTags(List<String> tags, String domainGroup) {

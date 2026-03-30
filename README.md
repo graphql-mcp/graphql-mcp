@@ -147,6 +147,10 @@ builder.Services.AddHotChocolateMcp(options =>   // or AddGraphQLDotNetMcp
     options.AllowMutations = false;
     options.ExcludedFields.Add("internalNotes");
     options.ExcludedTypes.Add("AdminPanel");
+    options.IncludedDomains.Add("order");
+    options.ExcludedDomains.Add("admin");
+    options.MaxArgumentComplexity = 75;
+    options.MinDescriptionLength = 12;
 
     options.Authorization.Mode = McpAuthMode.Passthrough;
     options.Transport = McpTransport.StreamableHttp;
@@ -177,6 +181,12 @@ graphql:
     allow-mutations: false
     excluded-fields:
       - internalData
+    included-domains:
+      - book
+    excluded-domains:
+      - admin
+    min-description-length: 12
+    max-argument-complexity: 75
     authorization:
       mode: passthrough
     transport: streamable-http
@@ -294,7 +304,7 @@ Restart Claude Desktop. Your GraphQL operations will appear as tools.
 - [x] Streamable HTTP transport
 - [x] MCP prompts for discovery and tool-selection workflows
 - [x] MCP resources for catalog overview and domain summaries
-- [x] Policy engine (field/type exclusion with globs, naming, depth, mutation blocking)
+- [x] Policy engine (field/type exclusion with globs, domain curation, naming, depth, mutation blocking, complexity gates)
 - [x] Selection set field exclusion (nested types)
 - [x] OpenTelemetry instrumentation
 - [x] Spring GraphQL starter

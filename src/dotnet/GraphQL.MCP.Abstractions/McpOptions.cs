@@ -27,6 +27,12 @@ public sealed class McpOptions
     public int MaxArgumentCount { get; set; } = 25;
 
     /// <summary>
+    /// Maximum weighted argument complexity allowed on a published operation. Default: 75.
+    /// Nested input objects, lists, and non-null wrappers increase the score.
+    /// </summary>
+    public int MaxArgumentComplexity { get; set; } = 75;
+
+    /// <summary>
     /// Naming policy for generated tool names.
     /// </summary>
     public ToolNamingPolicy NamingPolicy { get; set; } = ToolNamingPolicy.VerbNoun;
@@ -48,6 +54,12 @@ public sealed class McpOptions
     public bool RequireDescriptionsForPublishedTools { get; set; }
 
     /// <summary>
+    /// Minimum non-whitespace description length required when descriptions are present or required.
+    /// Default: 0 (no length gate).
+    /// </summary>
+    public int MinDescriptionLength { get; set; }
+
+    /// <summary>
     /// GraphQL field names to exclude from tool generation.
     /// Supports glob patterns: "*password*", "internal_*", "*.secret".
     /// </summary>
@@ -63,6 +75,16 @@ public sealed class McpOptions
     /// GraphQL type names to exclude. Operations returning/accepting these types are skipped.
     /// </summary>
     public HashSet<string> ExcludedTypes { get; set; } = [];
+
+    /// <summary>
+    /// Domain names to include. When non-empty, only operations in matching inferred domains are published.
+    /// </summary>
+    public HashSet<string> IncludedDomains { get; set; } = [];
+
+    /// <summary>
+    /// Domain names to exclude from publication.
+    /// </summary>
+    public HashSet<string> ExcludedDomains { get; set; } = [];
 
     /// <summary>
     /// Authorization configuration.

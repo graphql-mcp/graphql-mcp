@@ -11,8 +11,12 @@ graphql-mcp keeps generated MCP tools understandable and safe by applying policy
 - `ExcludedFields`: denylist of root and nested fields, with glob support
 - `ExcludedTypes`: skip operations that return or accept sensitive types
 - `RequireDescriptionsForPublishedTools` / `graphql.mcp.require-descriptions`: only publish documented operations
+- `MinDescriptionLength` / `graphql.mcp.min-description-length`: skip descriptions that are too short to be useful
 - `MaxToolCount`: cap the total published tool set
 - `MaxArgumentCount`: skip operations with too many inputs
+- `MaxArgumentComplexity` / `graphql.mcp.max-argument-complexity`: skip operations whose nested input shape is too complex
+- `IncludedDomains` / `graphql.mcp.included-domains`: allowlist inferred domains
+- `ExcludedDomains` / `graphql.mcp.excluded-domains`: denylist inferred domains
 
 ### Naming controls
 
@@ -40,7 +44,6 @@ Today this metadata is intentionally simple. It improves grouping and future dis
 
 ## Still Planned
 
-- max argument complexity beyond raw argument count
-- operation grouping by domain
-- richer semantic hints
-- description quality gates beyond presence or absence
+- richer semantic hints beyond the current lightweight hint model
+- deeper domain inference for very large or ambiguous schemas
+- more opinionated curation presets on top of the raw policy knobs
