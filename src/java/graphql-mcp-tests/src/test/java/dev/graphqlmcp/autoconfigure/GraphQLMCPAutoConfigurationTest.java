@@ -23,10 +23,13 @@ class GraphQLMCPAutoConfigurationTest {
               "graphql.mcp.naming-policy=verb-noun",
               "graphql.mcp.allow-mutations=false",
               "graphql.mcp.excluded-fields[0]=secretNote",
+              "graphql.mcp.included-domains[0]=book",
               "graphql.mcp.require-descriptions=true",
+              "graphql.mcp.min-description-length=5",
               "graphql.mcp.max-output-depth=3",
               "graphql.mcp.max-tool-count=10",
-              "graphql.mcp.max-argument-count=5");
+              "graphql.mcp.max-argument-count=5",
+              "graphql.mcp.max-argument-complexity=25");
 
   @Test
   void binds_properties_and_publishes_tools_from_schema() {
@@ -41,15 +44,17 @@ class GraphQLMCPAutoConfigurationTest {
           assertEquals("api", properties.getToolPrefix());
           assertFalse(properties.isAllowMutations());
           assertEquals(1, properties.getExcludedFields().size());
+          assertEquals(1, properties.getIncludedDomains().size());
           assertTrue(properties.isRequireDescriptions());
+          assertEquals(5, properties.getMinDescriptionLength());
           assertEquals(5, properties.getMaxArgumentCount());
+          assertEquals(25, properties.getMaxArgumentComplexity());
 
           GraphQLMCPServer server = context.getBean(GraphQLMCPServer.class);
-          assertEquals(2, server.listTools().size());
+          assertEquals(1, server.listTools().size());
 
           List<ToolDescriptor> tools = context.getBean("mcpToolDescriptors", List.class);
           assertEquals("api_get_book", tools.get(0).name());
-          assertEquals("api_get_hello", tools.get(1).name());
         });
   }
 }

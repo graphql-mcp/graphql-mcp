@@ -65,6 +65,18 @@ public sealed partial class PolicyEngine : IMcpPolicy
             return false;
         }
 
+        if (_options.MinDescriptionLength > 0 &&
+            !string.IsNullOrWhiteSpace(operation.Description) &&
+            operation.Description.Trim().Length < _options.MinDescriptionLength)
+        {
+            _logger.LogInformation(
+                "Excluding field '{Field}' - description length {Length} is below MinDescriptionLength {Min}",
+                operation.GraphQLFieldName,
+                operation.Description.Trim().Length,
+                _options.MinDescriptionLength);
+            return false;
+        }
+
         if (operation.Arguments.Count > _options.MaxArgumentCount)
         {
             _logger.LogInformation(
@@ -72,6 +84,17 @@ public sealed partial class PolicyEngine : IMcpPolicy
                 operation.GraphQLFieldName,
                 operation.Arguments.Count,
                 _options.MaxArgumentCount);
+            return false;
+        }
+
+        var argumentComplexity = CalculateArgumentComplexity(operation.Arguments);
+        if (argumentComplexity > _options.MaxArgumentComplexity)
+        {
+            _logger.LogInformation(
+                "Excluding field '{Field}' - argument complexity {Complexity} exceeds MaxArgumentComplexity {Max}",
+                operation.GraphQLFieldName,
+                argumentComplexity,
+                _options.MaxArgumentComplexity);
             return false;
         }
 
@@ -94,6 +117,26 @@ public sealed partial class PolicyEngine : IMcpPolicy
             _logger.LogInformation(
                 "Excluding field '{Field}' — matches ExcludedFields pattern",
                 operation.GraphQLFieldName);
+            return false;
+        }
+
+        var domain = InferDomain(operation);
+        if (_options.IncludedDomains.Count > 0 &&
+            !_options.IncludedDomains.Contains(domain, StringComparer.OrdinalIgnoreCase))
+        {
+            _logger.LogInformation(
+                "Excluding field '{Field}' - domain '{Domain}' is not in IncludedDomains",
+                operation.GraphQLFieldName,
+                domain);
+            return false;
+        }
+
+        if (_options.ExcludedDomains.Contains(domain, StringComparer.OrdinalIgnoreCase))
+        {
+            _logger.LogInformation(
+                "Excluding field '{Field}' - domain '{Domain}' is in ExcludedDomains",
+                operation.GraphQLFieldName,
+                domain);
             return false;
         }
 
@@ -239,9 +282,110 @@ public sealed partial class PolicyEngine : IMcpPolicy
         return Convert.ToHexString(hash.AsSpan(0, 4)).ToLowerInvariant();
     }
 
+    private static int CalculateArgumentComplexity(IReadOnlyList<CanonicalArgument> arguments) =>
+        arguments.Sum(argument => 1 + CalculateTypeComplexity(argument.Type));
+
+    private static int CalculateTypeComplexity(CanonicalType type)
+    {
+        var baseCost = type.Kind switch
+        {
+            TypeKind.Scalar => 1,
+            TypeKind.Enum => 1,
+            TypeKind.InputObject => 4 + (type.Fields?.Sum(field => 1 + CalculateTypeComplexity(field.Type)) ?? 0),
+            TypeKind.Object => 3 + (type.Fields?.Sum(field => 1 + CalculateTypeComplexity(field.Type)) ?? 0),
+            TypeKind.Interface => 3 + (type.Fields?.Sum(field => 1 + CalculateTypeComplexity(field.Type)) ?? 0),
+            TypeKind.Union => 3 + (type.PossibleTypes?.Sum(CalculateTypeComplexity) ?? 0),
+            TypeKind.List => 2,
+            TypeKind.NonNull => 1,
+            _ => 1
+        };
+
+        return type.OfType is null ? baseCost : baseCost + CalculateTypeComplexity(type.OfType);
+    }
+
+    private static string InferDomain(CanonicalOperation operation)
+    {
+        var tokens = SplitIdentifier(operation.GraphQLFieldName)
+            .Where(token => !ActionPrefixes.Contains(token))
+            .Where(token => !StopWords.Contains(token))
+            .Where(token => !StructuralSuffixes.Contains(token))
+            .Where(token => !GenericDomainTokens.Contains(token))
+            .ToList();
+
+        if (tokens.Count == 0)
+        {
+            return "general";
+        }
+
+        return Singularize(tokens[^1]);
+    }
+
+    private static List<string> SplitIdentifier(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return [];
+        }
+
+        var normalized = IdentifierBoundaryRegex().Replace(value, "$1_$2");
+        return normalized
+            .Split(['_', '-', '.', ' '], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(token => token.ToLowerInvariant())
+            .ToList();
+    }
+
+    private static string Singularize(string token)
+    {
+        if (token.EndsWith("ies", StringComparison.OrdinalIgnoreCase) && token.Length > 3)
+        {
+            return token[..^3] + "y";
+        }
+
+        if (token.EndsWith("ses", StringComparison.OrdinalIgnoreCase) && token.Length > 3)
+        {
+            return token[..^2];
+        }
+
+        if (token.EndsWith("s", StringComparison.OrdinalIgnoreCase) &&
+            !token.EndsWith("ss", StringComparison.OrdinalIgnoreCase) &&
+            token.Length > 1)
+        {
+            return token[..^1];
+        }
+
+        return token;
+    }
+
+    private static readonly HashSet<string> ActionPrefixes =
+    [
+        "get", "list", "fetch", "find", "search", "create", "update", "delete", "remove", "add",
+        "set", "count", "read", "lookup", "show", "load", "modify", "patch", "replace", "archive",
+        "upsert", "view", "new", "return"
+    ];
+
+    private static readonly HashSet<string> StopWords =
+    [
+        "by", "for", "from", "with", "within", "in", "of", "on", "at", "via", "using"
+    ];
+
+    private static readonly HashSet<string> StructuralSuffixes =
+    [
+        "connection", "connections", "edge", "edges", "node", "nodes", "payload", "payloads",
+        "response", "responses", "result", "results", "list", "lists", "page", "pages", "data",
+        "item", "items", "collection", "collections", "viewer", "viewers"
+    ];
+
+    private static readonly HashSet<string> GenericDomainTokens =
+    [
+        "api", "graphql", "service", "services", "endpoint", "endpoints", "core"
+    ];
+
     [GeneratedRegex(@"[^a-zA-Z0-9_]")]
     private static partial Regex SanitizeRegex();
 
     [GeneratedRegex(@"_{2,}")]
     private static partial Regex CollapseUnderscoresRegex();
+
+    [GeneratedRegex("([a-z0-9])([A-Z])")]
+    private static partial Regex IdentifierBoundaryRegex();
 }

@@ -14,9 +14,13 @@ public class GraphQLMCPProperties {
   private boolean allowMutations = false;
   private List<String> excludedFields = new ArrayList<>();
   private boolean requireDescriptions = false;
+  private int minDescriptionLength = 0;
   private int maxOutputDepth = 3;
   private int maxToolCount = 50;
   private int maxArgumentCount = 25;
+  private int maxArgumentComplexity = 75;
+  private List<String> includedDomains = new ArrayList<>();
+  private List<String> excludedDomains = new ArrayList<>();
   private String transport = "streamable-http";
   private Authorization authorization = new Authorization();
 
@@ -70,6 +74,14 @@ public class GraphQLMCPProperties {
     this.requireDescriptions = requireDescriptions;
   }
 
+  public int getMinDescriptionLength() {
+    return minDescriptionLength;
+  }
+
+  public void setMinDescriptionLength(int minDescriptionLength) {
+    this.minDescriptionLength = minDescriptionLength;
+  }
+
   public int getMaxOutputDepth() {
     return maxOutputDepth;
   }
@@ -92,6 +104,30 @@ public class GraphQLMCPProperties {
 
   public void setMaxArgumentCount(int maxArgumentCount) {
     this.maxArgumentCount = maxArgumentCount;
+  }
+
+  public int getMaxArgumentComplexity() {
+    return maxArgumentComplexity;
+  }
+
+  public void setMaxArgumentComplexity(int maxArgumentComplexity) {
+    this.maxArgumentComplexity = maxArgumentComplexity;
+  }
+
+  public List<String> getIncludedDomains() {
+    return includedDomains;
+  }
+
+  public void setIncludedDomains(List<String> includedDomains) {
+    this.includedDomains = includedDomains;
+  }
+
+  public List<String> getExcludedDomains() {
+    return excludedDomains;
+  }
+
+  public void setExcludedDomains(List<String> excludedDomains) {
+    this.excludedDomains = excludedDomains;
   }
 
   public String getTransport() {

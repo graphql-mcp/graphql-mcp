@@ -20,6 +20,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - grouped discovery metadata via explicit tool domains and `catalog/list` capability catalogs
 - semantic discovery hints on published tools via `semanticHints.intent` and `semanticHints.keywords`
 - stronger discovery heuristics for domain inference, singularization, and structural suffix stripping
+- searchable capability catalogs via `catalog/search` / `capabilities/search` with ranked matches and filters
+- curated exploration walkthrough doc and reusable JSON/HTTP request assets for the sample apps
+- lightweight MCP resources via `resources/list` and `resources/read` for catalog overview and domain summaries
+- MCP prompts via `prompts/list` and `prompts/get` for exploration and tool-selection workflows
+- advanced prompt/resource packs including workflow planning, candidate comparison, safe-call preparation, tool summaries, and reusable discovery playbooks
+- advanced policy controls including domain curation, minimum description length, and weighted argument complexity limits
 - dedicated docs for policies, adapters, and roadmap
 ### Fixed
 - ISchema DI resolution crash - Hot Chocolate adapter now uses `IRequestExecutorResolver` instead of `ISchema` (not registered in HC DI container)

@@ -65,12 +65,12 @@ Add the following dependencies to your `pom.xml`:
 <dependency>
     <groupId>dev.graphql-mcp</groupId>
     <artifactId>graphql-mcp-spring-boot-starter</artifactId>
-    <version>0.1.0-alpha.3</version>
+    <version>0.1.0-alpha.5</version>
 </dependency>
 <dependency>
     <groupId>dev.graphql-mcp</groupId>
     <artifactId>graphql-mcp-web</artifactId>
-    <version>0.1.0-alpha.3</version>
+    <version>0.1.0-alpha.5</version>
 </dependency>
 ```
 
@@ -135,6 +135,7 @@ curl -X POST http://localhost:8080/mcp \
 ## Next Steps
 
 - [Configuration](configuration.md)
+- [Exploration Workflow](../exploration.md)
 - [Security](../security.md)
 - [Mapping](../mapping.md)
 - [Architecture](../architecture.md)

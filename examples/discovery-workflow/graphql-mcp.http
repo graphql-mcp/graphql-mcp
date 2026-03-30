@@ -1,0 +1,183 @@
+@mcpUrl = http://localhost:5000/mcp
+@sessionId = replace-me
+
+### Initialize
+POST {{mcpUrl}}
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "initialize"
+}
+
+### Tools List
+POST {{mcpUrl}}
+Content-Type: application/json
+Mcp-Session-Id: {{sessionId}}
+
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "method": "tools/list"
+}
+
+### Resources List
+POST {{mcpUrl}}
+Content-Type: application/json
+Mcp-Session-Id: {{sessionId}}
+
+{
+  "jsonrpc": "2.0",
+  "id": 3,
+  "method": "resources/list"
+}
+
+### Resources Read Overview
+POST {{mcpUrl}}
+Content-Type: application/json
+Mcp-Session-Id: {{sessionId}}
+
+{
+  "jsonrpc": "2.0",
+  "id": 4,
+  "method": "resources/read",
+  "params": {
+    "uri": "graphql-mcp://catalog/overview"
+  }
+}
+
+### Resources Read Start Pack
+POST {{mcpUrl}}
+Content-Type: application/json
+Mcp-Session-Id: {{sessionId}}
+
+{
+  "jsonrpc": "2.0",
+  "id": 5,
+  "method": "resources/read",
+  "params": {
+    "uri": "graphql-mcp://packs/discovery/start-here"
+  }
+}
+
+### Prompts List
+POST {{mcpUrl}}
+Content-Type: application/json
+Mcp-Session-Id: {{sessionId}}
+
+{
+  "jsonrpc": "2.0",
+  "id": 6,
+  "method": "prompts/list"
+}
+
+### Prompts Get Explore Catalog
+POST {{mcpUrl}}
+Content-Type: application/json
+Mcp-Session-Id: {{sessionId}}
+
+{
+  "jsonrpc": "2.0",
+  "id": 7,
+  "method": "prompts/get",
+  "params": {
+    "name": "explore_catalog"
+  }
+}
+
+### Prompts Get Plan Task Workflow
+POST {{mcpUrl}}
+Content-Type: application/json
+Mcp-Session-Id: {{sessionId}}
+
+{
+  "jsonrpc": "2.0",
+  "id": 8,
+  "method": "prompts/get",
+  "params": {
+    "name": "plan_task_workflow",
+    "arguments": {
+      "task": "find the right book lookup workflow"
+    }
+  }
+}
+
+### Prompts Get Prepare Tool Call
+POST {{mcpUrl}}
+Content-Type: application/json
+Mcp-Session-Id: {{sessionId}}
+
+{
+  "jsonrpc": "2.0",
+  "id": 9,
+  "method": "prompts/get",
+  "params": {
+    "name": "prepare_tool_call",
+    "arguments": {
+      "tool": "get_bookByTitle",
+      "task": "look up a sample book by title"
+    }
+  }
+}
+
+### Catalog List
+POST {{mcpUrl}}
+Content-Type: application/json
+Mcp-Session-Id: {{sessionId}}
+
+{
+  "jsonrpc": "2.0",
+  "id": 10,
+  "method": "catalog/list"
+}
+
+### Catalog Search
+POST {{mcpUrl}}
+Content-Type: application/json
+Mcp-Session-Id: {{sessionId}}
+
+{
+  "jsonrpc": "2.0",
+  "id": 11,
+  "method": "catalog/search",
+  "params": {
+    "query": "book",
+    "tags": ["query"],
+    "limit": 5
+  }
+}
+
+### Call Hello
+POST {{mcpUrl}}
+Content-Type: application/json
+Mcp-Session-Id: {{sessionId}}
+
+{
+  "jsonrpc": "2.0",
+  "id": 12,
+  "method": "tools/call",
+  "params": {
+    "name": "get_hello",
+    "arguments": {
+      "name": "Claude"
+    }
+  }
+}
+
+### Call Book By Title
+POST {{mcpUrl}}
+Content-Type: application/json
+Mcp-Session-Id: {{sessionId}}
+
+{
+  "jsonrpc": "2.0",
+  "id": 13,
+  "method": "tools/call",
+  "params": {
+    "name": "get_bookByTitle",
+    "arguments": {
+      "title": "GraphQL"
+    }
+  }
+}

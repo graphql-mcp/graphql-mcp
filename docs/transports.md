@@ -38,8 +38,14 @@ All messages use JSON-RPC 2.0:
 |--------|-------------|
 | `initialize` | Capability negotiation |
 | `tools/list` | List all available tools |
+| `prompts/list` | List available prompt templates |
+| `prompts/get` | Fetch a prompt message sequence by name |
+| `resources/list` | List stable catalog, tool, and discovery pack resources |
+| `resources/read` | Read a catalog overview, domain summary, tool summary, or discovery pack |
 | `catalog/list` | Return grouped discovery metadata for published tools |
 | `capabilities/catalog` | Alias for `catalog/list` |
+| `catalog/search` | Return ranked discovery matches with optional filters |
+| `capabilities/search` | Alias for `catalog/search` |
 | `tools/call` | Execute a tool |
 | `ping` | Health check |
 
@@ -55,13 +61,21 @@ All messages use JSON-RPC 2.0:
       "tools": {
         "listChanged": true
       },
+      "prompts": {
+        "listChanged": true
+      },
+      "resources": {
+        "listChanged": true,
+        "read": true
+      },
       "catalog": {
-        "list": true
+        "list": true,
+        "search": true
       }
     },
     "serverInfo": {
       "name": "graphql-mcp",
-      "version": "0.1.0-alpha.3"
+      "version": "0.1.0-alpha"
     }
   }
 }
@@ -117,6 +131,116 @@ All messages use JSON-RPC 2.0:
   "keywords": ["book", "id", "query"]
 }
 ```
+
+For a full sample session that stitches together `initialize`, `tools/list`, `catalog/list`,
+`catalog/search`, and `tools/call`, see [Exploration Workflow](exploration.md).
+
+### Catalog Search Request
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 4,
+  "method": "catalog/search",
+  "params": {
+    "query": "book",
+    "tags": ["query"],
+    "limit": 5
+  }
+}
+```
+
+### Catalog Search Response
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 4,
+  "result": {
+    "query": "book",
+    "filters": {
+      "domain": null,
+      "category": null,
+      "operationType": null,
+      "tags": ["query"]
+    },
+    "totalMatches": 1,
+    "domainCount": 1,
+    "matches": [
+      {
+        "name": "get_book",
+        "domain": "book",
+        "tags": ["book", "query"],
+        "score": 55
+      }
+    ]
+  }
+}
+```
+
+### Resources List Request
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 5,
+  "method": "resources/list"
+}
+```
+
+### Resources Read Request
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 6,
+  "method": "resources/read",
+  "params": {
+    "uri": "graphql-mcp://catalog/overview"
+  }
+}
+```
+
+Common resource URIs now include:
+
+- `graphql-mcp://catalog/overview`
+- `graphql-mcp://catalog/domain/<domain>`
+- `graphql-mcp://catalog/tool/<tool>`
+- `graphql-mcp://packs/discovery/start-here`
+- `graphql-mcp://packs/discovery/investigate-domain`
+- `graphql-mcp://packs/discovery/safe-tool-call`
+
+### Prompts List Request
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 7,
+  "method": "prompts/list"
+}
+```
+
+### Prompts Get Request
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 8,
+  "method": "prompts/get",
+  "params": {
+    "name": "explore_domain",
+    "arguments": {
+      "domain": "book"
+    }
+  }
+}
+```
+
+Advanced prompt names now include:
+
+- `plan_task_workflow`
+- `compare_tools_for_task`
+- `prepare_tool_call`
 
 ### Tool Call Response (success)
 

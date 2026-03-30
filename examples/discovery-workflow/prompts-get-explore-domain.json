@@ -1,0 +1,11 @@
+{
+  "jsonrpc": "2.0",
+  "id": 12,
+  "method": "prompts/get",
+  "params": {
+    "name": "explore_domain",
+    "arguments": {
+      "domain": "book"
+    }
+  }
+}

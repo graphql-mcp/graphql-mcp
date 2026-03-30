@@ -33,6 +33,12 @@ public class GraphQLToMCPToolMapper {
     if (config.excludedFields().contains(op.graphQLFieldName())) return false;
     if (config.requireDescriptions() && (op.description() == null || op.description().isBlank()))
       return false;
+    if (config.minDescriptionLength() > 0
+        && op.description() != null
+        && !op.description().isBlank()
+        && op.description().trim().length() < config.minDescriptionLength()) {
+      return false;
+    }
     if (op.arguments().size() > config.maxArgumentCount()) return false;
     return true;
   }
@@ -85,12 +91,28 @@ public class GraphQLToMCPToolMapper {
       NamingPolicy namingPolicy,
       boolean allowMutations,
       Set<String> excludedFields,
+      Set<String> includedDomains,
+      Set<String> excludedDomains,
       int maxOutputDepth,
       int maxToolCount,
       boolean requireDescriptions,
-      int maxArgumentCount) {
+      int minDescriptionLength,
+      int maxArgumentCount,
+      int maxArgumentComplexity) {
     public static GraphQLMCPConfig defaults() {
-      return new GraphQLMCPConfig(null, NamingPolicy.VERB_NOUN, false, Set.of(), 3, 50, false, 25);
+      return new GraphQLMCPConfig(
+          null,
+          NamingPolicy.VERB_NOUN,
+          false,
+          Set.of(),
+          Set.of(),
+          Set.of(),
+          3,
+          50,
+          false,
+          0,
+          25,
+          75);
     }
   }
 

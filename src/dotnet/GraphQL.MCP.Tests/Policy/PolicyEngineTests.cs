@@ -87,6 +87,69 @@ public class PolicyEngineTests
     }
 
     [Fact]
+    public void Should_exclude_operations_exceeding_MaxArgumentComplexity()
+    {
+        var sut = CreateSut(new McpOptions { MaxArgumentComplexity = 8 });
+        var op = new CanonicalOperation
+        {
+            Name = "searchUsers",
+            GraphQLFieldName = "searchUsers",
+            Description = "Search users with nested filters",
+            OperationType = OperationType.Query,
+            ReturnType = new CanonicalType { Name = "String", Kind = TypeKind.Scalar },
+            Arguments =
+            [
+                new CanonicalArgument
+                {
+                    Name = "filter",
+                    Type = new CanonicalType
+                    {
+                        Name = "UserFilter",
+                        Kind = TypeKind.InputObject,
+                        Fields =
+                        [
+                            new CanonicalField
+                            {
+                                Name = "name",
+                                Type = new CanonicalType { Name = "String", Kind = TypeKind.Scalar }
+                            },
+                            new CanonicalField
+                            {
+                                Name = "roles",
+                                Type = new CanonicalType
+                                {
+                                    Name = "List",
+                                    Kind = TypeKind.List,
+                                    IsList = true,
+                                    OfType = new CanonicalType { Name = "String", Kind = TypeKind.Scalar }
+                                }
+                            }
+                        ]
+                    }
+                }
+            ]
+        };
+
+        sut.ShouldIncludeOperation(op).Should().BeFalse();
+    }
+
+    [Fact]
+    public void Should_exclude_operations_with_short_descriptions_when_MinDescriptionLength_is_set()
+    {
+        var sut = CreateSut(new McpOptions { MinDescriptionLength = 12 });
+        var op = new CanonicalOperation
+        {
+            Name = "users",
+            GraphQLFieldName = "users",
+            Description = "Too short",
+            OperationType = OperationType.Query,
+            ReturnType = new CanonicalType { Name = "String", Kind = TypeKind.Scalar }
+        };
+
+        sut.ShouldIncludeOperation(op).Should().BeFalse();
+    }
+
+    [Fact]
     public void Should_exclude_introspection_fields()
     {
         var sut = CreateSut();
@@ -280,6 +343,24 @@ public class PolicyEngineTests
         sut.ShouldIncludeOperation(CreateOperation("getUsers")).Should().BeTrue();
         sut.ShouldIncludeOperation(CreateOperation("listOrders")).Should().BeTrue();
         sut.ShouldIncludeOperation(CreateOperation("createUser")).Should().BeFalse();
+    }
+
+    [Fact]
+    public void Should_only_include_operations_in_IncludedDomains()
+    {
+        var sut = CreateSut(new McpOptions { IncludedDomains = ["order"] });
+
+        sut.ShouldIncludeOperation(CreateOperation("listOrders")).Should().BeTrue();
+        sut.ShouldIncludeOperation(CreateOperation("listUsers")).Should().BeFalse();
+    }
+
+    [Fact]
+    public void Should_exclude_operations_in_ExcludedDomains()
+    {
+        var sut = CreateSut(new McpOptions { ExcludedDomains = ["user"] });
+
+        sut.ShouldIncludeOperation(CreateOperation("listUsers")).Should().BeFalse();
+        sut.ShouldIncludeOperation(CreateOperation("listOrders")).Should().BeTrue();
     }
 
     // --- Return type unwrapping tests ---

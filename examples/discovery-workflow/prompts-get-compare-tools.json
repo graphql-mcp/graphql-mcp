@@ -1,0 +1,12 @@
+{
+  "jsonrpc": "2.0",
+  "id": 24,
+  "method": "prompts/get",
+  "params": {
+    "name": "compare_tools_for_task",
+    "arguments": {
+      "task": "look up a book by title",
+      "domain": "book"
+    }
+  }
+}

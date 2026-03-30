@@ -37,10 +37,16 @@ Some frameworks are adding native MCP support (e.g., Hot Chocolate 16). graphql-
 
 ## Discovery
 
-graphql-mcp now ships two lightweight discovery surfaces:
+graphql-mcp now ships layered discovery surfaces plus MCP prompt workflows:
 
 - `tools/list` includes per-tool `domain`, `category`, `tags`, and `semanticHints` annotations
+- `prompts/list` and `prompts/get` expose reusable exploration, planning, comparison, and safe-call templates
+- `resources/list` and `resources/read` expose stable overview, domain, tool, and discovery playbook documents
 - `catalog/list` returns grouped domain summaries, semantic hints, and tool metadata for exploration UIs
+- `catalog/search` returns ranked matches with optional query/domain/category/tag filters for discovery UIs
+
+Use [docs/exploration.md](docs/exploration.md) and
+[examples/discovery-workflow](examples/discovery-workflow) for a hands-on discovery walkthrough against the sample apps.
 
 ## Supported AI Clients
 
@@ -83,7 +89,7 @@ dotnet add package GraphQL.MCP.GraphQLDotNet
 <dependency>
     <groupId>dev.graphql-mcp</groupId>
     <artifactId>graphql-mcp-spring-boot-starter</artifactId>
-    <version>0.1.0-alpha.3</version>
+    <version>0.1.0-alpha.5</version>
 </dependency>
 ```
 
@@ -141,6 +147,10 @@ builder.Services.AddHotChocolateMcp(options =>   // or AddGraphQLDotNetMcp
     options.AllowMutations = false;
     options.ExcludedFields.Add("internalNotes");
     options.ExcludedTypes.Add("AdminPanel");
+    options.IncludedDomains.Add("order");
+    options.ExcludedDomains.Add("admin");
+    options.MaxArgumentComplexity = 75;
+    options.MinDescriptionLength = 12;
 
     options.Authorization.Mode = McpAuthMode.Passthrough;
     options.Transport = McpTransport.StreamableHttp;
@@ -171,6 +181,12 @@ graphql:
     allow-mutations: false
     excluded-fields:
       - internalData
+    included-domains:
+      - book
+    excluded-domains:
+      - admin
+    min-description-length: 12
+    max-argument-complexity: 75
     authorization:
       mode: passthrough
     transport: streamable-http
@@ -265,6 +281,10 @@ Restart Claude Desktop. Your GraphQL operations will appear as tools.
 | Configuration (.NET) | [docs/dotnet/configuration.md](docs/dotnet/configuration.md) |
 | Getting Started (Java) | [docs/java/getting-started.md](docs/java/getting-started.md) |
 | Configuration (Java) | [docs/java/configuration.md](docs/java/configuration.md) |
+| Discovery | [docs/discovery.md](docs/discovery.md) |
+| Prompts | [docs/prompts.md](docs/prompts.md) |
+| Resources | [docs/resources.md](docs/resources.md) |
+| Exploration Workflow | [docs/exploration.md](docs/exploration.md) |
 | Policies | [docs/policies.md](docs/policies.md) |
 | Adapters | [docs/adapters.md](docs/adapters.md) |
 | Roadmap | [docs/roadmap.md](docs/roadmap.md) |
@@ -282,13 +302,16 @@ Restart Claude Desktop. Your GraphQL operations will appear as tools.
 - [x] Hot Chocolate adapter
 - [x] graphql-dotnet adapter
 - [x] Streamable HTTP transport
-- [x] Policy engine (field/type exclusion with globs, naming, depth, mutation blocking)
+- [x] MCP prompts for discovery and tool-selection workflows
+- [x] MCP resources for catalog overview and domain summaries
+- [x] Policy engine (field/type exclusion with globs, domain curation, naming, depth, mutation blocking, complexity gates)
 - [x] Selection set field exclusion (nested types)
 - [x] OpenTelemetry instrumentation
 - [x] Spring GraphQL starter
-- [ ] MCP Resources (schema summary, type docs)
-- [ ] MCP Prompts (curated exploration templates)
-- [x] AI-friendly discovery (domain grouping, semantic hints, and grouped catalogs)
+- [x] Advanced MCP resources (tool summaries, discovery playbooks)
+- [x] Advanced MCP prompts (workflow planning, candidate comparison, safe-call prep)
+- [x] AI-friendly discovery (domain grouping, semantic hints, grouped catalogs, and catalog search)
+- [x] Curated exploration workflow and reusable request assets for the sample apps
 - [ ] OAuth 2.1 metadata support
 - [ ] stdio transport
 - [ ] Netflix DGS adapter
