@@ -40,6 +40,22 @@ class McpControllerTest {
             .path("catalog")
             .path("search")
             .asBoolean());
+    assertTrue(
+        initializeResponse
+            .getBody()
+            .path("result")
+            .path("capabilities")
+            .path("prompts")
+            .path("listChanged")
+            .asBoolean());
+    assertTrue(
+        initializeResponse
+            .getBody()
+            .path("result")
+            .path("capabilities")
+            .path("resources")
+            .path("read")
+            .asBoolean());
 
     var missingSessionResponse =
         controller.handle(jsonRpcRequest("tools/list", null), null, new MockHttpServletRequest());
@@ -112,6 +128,119 @@ class McpControllerTest {
 
     assertEquals(HttpStatus.OK, response.getStatusCode());
     assertEquals(2, response.getBody().path("result").path("domainCount").asInt());
+  }
+
+  @Test
+  void resources_list_json_rpc_returns_overview_and_domain_resources() {
+    McpController controller = createController();
+    String sessionId =
+        controller
+            .handle(jsonRpcRequest("initialize", null), null, new MockHttpServletRequest())
+            .getHeaders()
+            .getFirst("Mcp-Session-Id");
+
+    var response =
+        controller.handle(
+            jsonRpcRequest("resources/list", null), sessionId, new MockHttpServletRequest());
+
+    assertEquals(HttpStatus.OK, response.getStatusCode());
+    assertEquals(3, response.getBody().path("result").path("resources").size());
+    assertEquals(
+        "graphql-mcp://catalog/overview",
+        response.getBody().path("result").path("resources").get(0).path("uri").asText());
+  }
+
+  @Test
+  void prompts_list_json_rpc_returns_discovery_prompts() {
+    McpController controller = createController();
+    String sessionId =
+        controller
+            .handle(jsonRpcRequest("initialize", null), null, new MockHttpServletRequest())
+            .getHeaders()
+            .getFirst("Mcp-Session-Id");
+
+    var response =
+        controller.handle(
+            jsonRpcRequest("prompts/list", null), sessionId, new MockHttpServletRequest());
+
+    assertEquals(HttpStatus.OK, response.getStatusCode());
+    assertEquals(3, response.getBody().path("result").path("prompts").size());
+    assertEquals(
+        "explore_catalog",
+        response.getBody().path("result").path("prompts").get(0).path("name").asText());
+  }
+
+  @Test
+  void prompts_get_json_rpc_returns_embedded_resource_message() {
+    McpController controller = createController();
+    String sessionId =
+        controller
+            .handle(jsonRpcRequest("initialize", null), null, new MockHttpServletRequest())
+            .getHeaders()
+            .getFirst("Mcp-Session-Id");
+
+    ObjectNode params = MAPPER.createObjectNode();
+    params.put("name", "explore_domain");
+    ObjectNode arguments = MAPPER.createObjectNode();
+    arguments.put("domain", "book");
+    params.set("arguments", arguments);
+
+    var response =
+        controller.handle(
+            jsonRpcRequest("prompts/get", params), sessionId, new MockHttpServletRequest());
+
+    assertEquals(HttpStatus.OK, response.getStatusCode());
+    assertTrue(response.getBody().path("result").path("description").asText().contains("book"));
+    assertEquals(
+        "resource",
+        response
+            .getBody()
+            .path("result")
+            .path("messages")
+            .get(1)
+            .path("content")
+            .path("type")
+            .asText());
+    assertEquals(
+        "graphql-mcp://catalog/domain/book",
+        response
+            .getBody()
+            .path("result")
+            .path("messages")
+            .get(1)
+            .path("content")
+            .path("resource")
+            .path("uri")
+            .asText());
+  }
+
+  @Test
+  void resources_read_json_rpc_returns_domain_summary() throws Exception {
+    McpController controller = createController();
+    String sessionId =
+        controller
+            .handle(jsonRpcRequest("initialize", null), null, new MockHttpServletRequest())
+            .getHeaders()
+            .getFirst("Mcp-Session-Id");
+
+    ObjectNode params = MAPPER.createObjectNode();
+    params.put("uri", "graphql-mcp://catalog/domain/book");
+
+    var response =
+        controller.handle(
+            jsonRpcRequest("resources/read", params), sessionId, new MockHttpServletRequest());
+
+    assertEquals(HttpStatus.OK, response.getStatusCode());
+    assertEquals(
+        "graphql-mcp://catalog/domain/book",
+        response.getBody().path("result").path("contents").get(0).path("uri").asText());
+
+    JsonNode payload =
+        MAPPER.readTree(
+            response.getBody().path("result").path("contents").get(0).path("text").asText());
+    assertEquals("domainSummary", payload.path("kind").asText());
+    assertEquals("book", payload.path("domain").asText());
+    assertEquals("api_get_book", payload.path("tools").get(0).path("name").asText());
   }
 
   @Test

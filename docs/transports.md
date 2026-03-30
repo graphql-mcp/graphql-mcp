@@ -38,6 +38,10 @@ All messages use JSON-RPC 2.0:
 |--------|-------------|
 | `initialize` | Capability negotiation |
 | `tools/list` | List all available tools |
+| `prompts/list` | List available prompt templates |
+| `prompts/get` | Fetch a prompt message sequence by name |
+| `resources/list` | List stable catalog and domain summary resources |
+| `resources/read` | Read a catalog overview or domain summary resource |
 | `catalog/list` | Return grouped discovery metadata for published tools |
 | `capabilities/catalog` | Alias for `catalog/list` |
 | `catalog/search` | Return ranked discovery matches with optional filters |
@@ -56,6 +60,13 @@ All messages use JSON-RPC 2.0:
     "capabilities": {
       "tools": {
         "listChanged": true
+      },
+      "prompts": {
+        "listChanged": true
+      },
+      "resources": {
+        "listChanged": true,
+        "read": true
       },
       "catalog": {
         "list": true,
@@ -163,6 +174,55 @@ For a full sample session that stitches together `initialize`, `tools/list`, `ca
         "score": 55
       }
     ]
+  }
+}
+```
+
+### Resources List Request
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 5,
+  "method": "resources/list"
+}
+```
+
+### Resources Read Request
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 6,
+  "method": "resources/read",
+  "params": {
+    "uri": "graphql-mcp://catalog/overview"
+  }
+}
+```
+
+### Prompts List Request
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 7,
+  "method": "prompts/list"
+}
+```
+
+### Prompts Get Request
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 8,
+  "method": "prompts/get",
+  "params": {
+    "name": "explore_domain",
+    "arguments": {
+      "domain": "book"
+    }
   }
 }
 ```

@@ -37,9 +37,11 @@ Some frameworks are adding native MCP support (e.g., Hot Chocolate 16). graphql-
 
 ## Discovery
 
-graphql-mcp now ships three lightweight discovery surfaces:
+graphql-mcp now ships lightweight discovery surfaces plus MCP prompt workflows:
 
 - `tools/list` includes per-tool `domain`, `category`, `tags`, and `semanticHints` annotations
+- `prompts/list` and `prompts/get` expose reusable exploration and tool-selection templates
+- `resources/list` and `resources/read` expose stable overview and domain summary documents
 - `catalog/list` returns grouped domain summaries, semantic hints, and tool metadata for exploration UIs
 - `catalog/search` returns ranked matches with optional query/domain/category/tag filters for discovery UIs
 
@@ -270,6 +272,8 @@ Restart Claude Desktop. Your GraphQL operations will appear as tools.
 | Getting Started (Java) | [docs/java/getting-started.md](docs/java/getting-started.md) |
 | Configuration (Java) | [docs/java/configuration.md](docs/java/configuration.md) |
 | Discovery | [docs/discovery.md](docs/discovery.md) |
+| Prompts | [docs/prompts.md](docs/prompts.md) |
+| Resources | [docs/resources.md](docs/resources.md) |
 | Exploration Workflow | [docs/exploration.md](docs/exploration.md) |
 | Policies | [docs/policies.md](docs/policies.md) |
 | Adapters | [docs/adapters.md](docs/adapters.md) |
@@ -288,6 +292,8 @@ Restart Claude Desktop. Your GraphQL operations will appear as tools.
 - [x] Hot Chocolate adapter
 - [x] graphql-dotnet adapter
 - [x] Streamable HTTP transport
+- [x] MCP prompts for discovery and tool-selection workflows
+- [x] MCP resources for catalog overview and domain summaries
 - [x] Policy engine (field/type exclusion with globs, naming, depth, mutation blocking)
 - [x] Selection set field exclusion (nested types)
 - [x] OpenTelemetry instrumentation

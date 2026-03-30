@@ -1,0 +1,12 @@
+{
+  "jsonrpc": "2.0",
+  "id": 13,
+  "method": "prompts/get",
+  "params": {
+    "name": "choose_tool_for_task",
+    "arguments": {
+      "task": "Find the book titled Learning MCP",
+      "domain": "book"
+    }
+  }
+}

@@ -4,9 +4,13 @@ This guide walks through the same MCP discovery loop against any sample app in t
 
 1. `initialize`
 2. `tools/list`
-3. `catalog/list`
-4. `catalog/search`
-5. `tools/call`
+3. `prompts/list`
+4. `prompts/get`
+5. `resources/list`
+6. `resources/read`
+7. `catalog/list`
+8. `catalog/search`
+9. `tools/call`
 
 All three sample servers expose the same GraphQL operations:
 
@@ -49,6 +53,13 @@ The repo now includes a reusable request pack in
 - [graphql-mcp.http](../examples/discovery-workflow/graphql-mcp.http) for REST Client style workflows
 - [initialize.json](../examples/discovery-workflow/initialize.json)
 - [tools-list.json](../examples/discovery-workflow/tools-list.json)
+- [prompts-list.json](../examples/discovery-workflow/prompts-list.json)
+- [prompts-get-explore-catalog.json](../examples/discovery-workflow/prompts-get-explore-catalog.json)
+- [prompts-get-explore-domain.json](../examples/discovery-workflow/prompts-get-explore-domain.json)
+- [prompts-get-choose-tool.json](../examples/discovery-workflow/prompts-get-choose-tool.json)
+- [resources-list.json](../examples/discovery-workflow/resources-list.json)
+- [resources-read-overview.json](../examples/discovery-workflow/resources-read-overview.json)
+- [resources-read-book-domain.json](../examples/discovery-workflow/resources-read-book-domain.json)
 - [catalog-list.json](../examples/discovery-workflow/catalog-list.json)
 - [catalog-search-book.json](../examples/discovery-workflow/catalog-search-book.json)
 - [tools-call-hello.json](../examples/discovery-workflow/tools-call-hello.json)
@@ -77,7 +88,48 @@ Expected outcome:
 - tool names such as `get_hello`, `get_books`, and `get_bookByTitle`
 - per-tool `domain`, `category`, `tags`, and `semanticHints`
 
-### 3. Inspect Catalog Groups
+### 3. List Prompt Templates
+
+Send [prompts-list.json](../examples/discovery-workflow/prompts-list.json).
+
+Expected outcome:
+
+- reusable workflow templates such as `explore_catalog`, `explore_domain`, and `choose_tool_for_task`
+- structured prompt arguments instead of free-form client conventions
+
+### 4. Fetch A Prompt
+
+Send [prompts-get-explore-catalog.json](../examples/discovery-workflow/prompts-get-explore-catalog.json),
+[prompts-get-explore-domain.json](../examples/discovery-workflow/prompts-get-explore-domain.json), or
+[prompts-get-choose-tool.json](../examples/discovery-workflow/prompts-get-choose-tool.json).
+
+Expected outcome:
+
+- a reusable prompt message sequence
+- embedded discovery resources inside the prompt payload
+- a client-ready workflow for exploration or tool selection
+
+### 5. List Discovery Resources
+
+Send [resources-list.json](../examples/discovery-workflow/resources-list.json).
+
+Expected outcome:
+
+- a catalog overview resource
+- one domain summary resource per discovered domain
+- stable `graphql-mcp://...` resource URIs that a client can read later
+
+### 6. Read A Resource Summary
+
+Send [resources-read-overview.json](../examples/discovery-workflow/resources-read-overview.json) or
+[resources-read-book-domain.json](../examples/discovery-workflow/resources-read-book-domain.json).
+
+Expected outcome:
+
+- a cached-friendly JSON summary of the full catalog or a single domain
+- grouped tool metadata without having to recompute a live search result
+
+### 7. Inspect Catalog Groups
 
 Send [catalog-list.json](../examples/discovery-workflow/catalog-list.json).
 
@@ -87,7 +139,7 @@ Expected outcome:
 - a `book` domain with book-related tools
 - aggregated `semanticHints` and tags for each domain
 
-### 4. Search The Catalog
+### 8. Search The Catalog
 
 Send [catalog-search-book.json](../examples/discovery-workflow/catalog-search-book.json).
 
@@ -96,7 +148,7 @@ Expected outcome:
 - ranked matches for book-oriented tools
 - metadata that helps an exploration UI choose between list and lookup operations
 
-### 5. Call A Simple Tool
+### 9. Call A Simple Tool
 
 Send [tools-call-hello.json](../examples/discovery-workflow/tools-call-hello.json).
 
@@ -104,7 +156,7 @@ Expected outcome:
 
 - a successful text result containing `Hello, Claude!`
 
-### 6. Call A Discovered Book Tool
+### 10. Call A Discovered Book Tool
 
 Send [tools-call-book-by-title.json](../examples/discovery-workflow/tools-call-book-by-title.json).
 
@@ -119,6 +171,8 @@ If you change naming policy or tool prefix, use `tools/list` or `catalog/search`
 This loop shows the intended client experience for larger schemas:
 
 - `tools/list` is the raw capability surface
+- `prompts/get` provides reusable workflows on top of that surface
+- `resources/read` gives stable summary documents
 - `catalog/list` gives grouped summaries
 - `catalog/search` narrows the candidate set
 - `tools/call` executes the selected operation
@@ -128,6 +182,8 @@ That is the current discovery story before heavier MCP resources and prompts arr
 ## Related Docs
 
 - [Discovery](discovery.md)
+- [Prompts](prompts.md)
+- [Resources](resources.md)
 - [Transports](transports.md)
 - [Getting Started (.NET)](dotnet/getting-started.md)
 - [Getting Started (Java)](java/getting-started.md)

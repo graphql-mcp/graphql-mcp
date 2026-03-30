@@ -101,8 +101,12 @@ public class StreamableHttpTransportTests
         response.Headers.GetValues("Mcp-Session-Id").First().Should().NotBeNullOrEmpty();
 
         var json = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+        json.RootElement.GetProperty("result").GetProperty("capabilities").GetProperty("prompts")
+            .GetProperty("listChanged").GetBoolean().Should().BeTrue();
         json.RootElement.GetProperty("result").GetProperty("capabilities").GetProperty("catalog")
             .GetProperty("search").GetBoolean().Should().BeTrue();
+        json.RootElement.GetProperty("result").GetProperty("capabilities").GetProperty("resources")
+            .GetProperty("read").GetBoolean().Should().BeTrue();
     }
 
     [Fact]
@@ -168,6 +172,49 @@ public class StreamableHttpTransportTests
     }
 
     [Fact]
+    public async Task Prompts_list_should_include_discovery_prompts()
+    {
+        using var host = await CreateTestHost();
+        using var client = host.GetTestClient();
+        var sessionId = await InitializeSessionAsync(client);
+
+        var response = await SendMcpRequest(client, "prompts/list", null, sessionId);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var json = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+        var prompts = json.RootElement.GetProperty("result").GetProperty("prompts");
+        prompts.GetArrayLength().Should().Be(3);
+        prompts[0].GetProperty("name").GetString().Should().Be("explore_catalog");
+        prompts[1].GetProperty("arguments")[0].GetProperty("name").GetString().Should().Be("domain");
+    }
+
+    [Fact]
+    public async Task Prompts_get_should_embed_domain_resource()
+    {
+        using var host = await CreateTestHost();
+        using var client = host.GetTestClient();
+        var sessionId = await InitializeSessionAsync(client);
+
+        var response = await SendMcpRequest(
+            client,
+            "prompts/get",
+            "{\"name\":\"explore_domain\",\"arguments\":{\"domain\":\"order\"}}",
+            sessionId);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var json = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+        var result = json.RootElement.GetProperty("result");
+        result.GetProperty("description").GetString().Should().Contain("order");
+        var messages = result.GetProperty("messages");
+        messages.GetArrayLength().Should().Be(2);
+        messages[1].GetProperty("content").GetProperty("type").GetString().Should().Be("resource");
+        messages[1].GetProperty("content").GetProperty("resource").GetProperty("uri").GetString()
+            .Should().Be("graphql-mcp://catalog/domain/order");
+    }
+
+    [Fact]
     public async Task Catalog_list_should_group_tools_by_domain()
     {
         using var host = await CreateTestHost();
@@ -193,6 +240,54 @@ public class StreamableHttpTransportTests
         firstDomain.GetProperty("toolNames").EnumerateArray()
             .Select(element => element.GetString())
             .Should().Contain(["get_order"]);
+    }
+
+    [Fact]
+    public async Task Resources_list_should_include_overview_and_domain_resources()
+    {
+        using var host = await CreateTestHost();
+        using var client = host.GetTestClient();
+        var sessionId = await InitializeSessionAsync(client);
+
+        var response = await SendMcpRequest(client, "resources/list", null, sessionId);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var json = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+        var resources = json.RootElement.GetProperty("result").GetProperty("resources");
+
+        resources.GetArrayLength().Should().Be(3);
+        resources[0].GetProperty("uri").GetString().Should().Be("graphql-mcp://catalog/overview");
+        resources.EnumerateArray()
+            .Select(resource => resource.GetProperty("uri").GetString())
+            .Should().Contain("graphql-mcp://catalog/domain/order");
+    }
+
+    [Fact]
+    public async Task Resources_read_should_return_domain_summary()
+    {
+        using var host = await CreateTestHost();
+        using var client = host.GetTestClient();
+        var sessionId = await InitializeSessionAsync(client);
+
+        var response = await SendMcpRequest(
+            client,
+            "resources/read",
+            "{\"uri\":\"graphql-mcp://catalog/domain/order\"}",
+            sessionId);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var json = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+        var content = json.RootElement.GetProperty("result").GetProperty("contents")[0];
+        content.GetProperty("uri").GetString().Should().Be("graphql-mcp://catalog/domain/order");
+
+        using var payload = JsonDocument.Parse(content.GetProperty("text").GetString()!);
+        payload.RootElement.GetProperty("kind").GetString().Should().Be("domainSummary");
+        payload.RootElement.GetProperty("domain").GetString().Should().Be("order");
+        payload.RootElement.GetProperty("toolNames").EnumerateArray()
+            .Select(element => element.GetString())
+            .Should().Contain("get_order");
     }
 
     [Fact]
@@ -309,10 +404,13 @@ public class StreamableHttpTransportTests
         var json = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
         var serverInfo = json.RootElement.GetProperty("result").GetProperty("serverInfo");
         var catalogCapabilities = json.RootElement.GetProperty("result").GetProperty("capabilities").GetProperty("catalog");
+        var resourceCapabilities = json.RootElement.GetProperty("result").GetProperty("capabilities").GetProperty("resources");
 
         serverInfo.GetProperty("name").GetString().Should().Be("graphql-mcp");
         serverInfo.GetProperty("version").GetString().Should().NotBeNullOrEmpty();
         catalogCapabilities.GetProperty("search").GetBoolean().Should().BeTrue();
+        resourceCapabilities.GetProperty("listChanged").GetBoolean().Should().BeTrue();
+        resourceCapabilities.GetProperty("read").GetBoolean().Should().BeTrue();
     }
 
     [Fact]

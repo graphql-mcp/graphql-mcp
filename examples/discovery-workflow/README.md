@@ -11,4 +11,15 @@ The assets assume the default sample operations:
 - `books`
 - `bookByTitle`
 
+They now cover:
+
+- `tools/list`
+- `prompts/list`
+- `prompts/get`
+- `resources/list`
+- `resources/read`
+- `catalog/list`
+- `catalog/search`
+- `tools/call`
+
 See [docs/exploration.md](../../docs/exploration.md) for the full walkthrough.

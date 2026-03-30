@@ -70,6 +70,10 @@ public class McpController {
 
     return switch (method) {
       case "tools/list" -> handleToolsList(id);
+      case "prompts/list" -> handlePromptsListRpc(id);
+      case "prompts/get" -> handlePromptGetRpc(id, body.get("params"));
+      case "resources/list" -> handleResourcesListRpc(id);
+      case "resources/read" -> handleResourcesReadRpc(id, body.get("params"));
       case "catalog/list", "capabilities/catalog" -> handleCatalogRpc(id);
       case "catalog/search", "capabilities/search" ->
           handleCatalogSearchRpc(id, body.get("params"));
@@ -113,6 +117,13 @@ public class McpController {
     ObjectNode toolsCap = MAPPER.createObjectNode();
     toolsCap.put("listChanged", initResult.capabilities().tools().listChanged());
     capabilities.set("tools", toolsCap);
+    ObjectNode promptsCap = MAPPER.createObjectNode();
+    promptsCap.put("listChanged", initResult.capabilities().prompts().listChanged());
+    capabilities.set("prompts", promptsCap);
+    ObjectNode resourcesCap = MAPPER.createObjectNode();
+    resourcesCap.put("listChanged", initResult.capabilities().resources().listChanged());
+    resourcesCap.put("read", initResult.capabilities().resources().read());
+    capabilities.set("resources", resourcesCap);
     ObjectNode catalogCap = MAPPER.createObjectNode();
     catalogCap.put("list", initResult.capabilities().catalog().list());
     catalogCap.put("search", initResult.capabilities().catalog().search());
@@ -200,6 +211,57 @@ public class McpController {
     return ResponseEntity.ok(jsonRpcResult(id, buildCatalogResult()));
   }
 
+  private ResponseEntity<ObjectNode> handleResourcesListRpc(JsonNode id) {
+    return ResponseEntity.ok(jsonRpcResult(id, buildResourcesListResult()));
+  }
+
+  private ResponseEntity<ObjectNode> handlePromptsListRpc(JsonNode id) {
+    return ResponseEntity.ok(jsonRpcResult(id, buildPromptsListResult()));
+  }
+
+  private ResponseEntity<ObjectNode> handlePromptGetRpc(JsonNode id, JsonNode params) {
+    if (params == null || !params.hasNonNull("name")) {
+      return ResponseEntity.ok(jsonRpcError(id, -32602, "Missing prompt name"));
+    }
+
+    String promptName = params.path("name").asText(null);
+    if (promptName == null || promptName.isBlank()) {
+      return ResponseEntity.ok(jsonRpcError(id, -32602, "Missing prompt name"));
+    }
+
+    JsonNode arguments = params.get("arguments");
+    ObjectNode result;
+    try {
+      result = buildPromptGetResult(promptName, arguments);
+    } catch (IllegalArgumentException ex) {
+      return ResponseEntity.ok(jsonRpcError(id, -32602, ex.getMessage()));
+    }
+
+    if (result == null) {
+      return ResponseEntity.ok(jsonRpcError(id, -32602, "Unknown prompt: " + promptName));
+    }
+
+    return ResponseEntity.ok(jsonRpcResult(id, result));
+  }
+
+  private ResponseEntity<ObjectNode> handleResourcesReadRpc(JsonNode id, JsonNode params) {
+    if (params == null || !params.hasNonNull("uri")) {
+      return ResponseEntity.ok(jsonRpcError(id, -32602, "Missing resource uri"));
+    }
+
+    String uri = params.path("uri").asText(null);
+    if (uri == null || uri.isBlank()) {
+      return ResponseEntity.ok(jsonRpcError(id, -32602, "Missing resource uri"));
+    }
+
+    ObjectNode result = buildResourcesReadResult(uri);
+    if (result == null) {
+      return ResponseEntity.ok(jsonRpcError(id, -32602, "Unknown resource: " + uri));
+    }
+
+    return ResponseEntity.ok(jsonRpcResult(id, result));
+  }
+
   private ResponseEntity<ObjectNode> handleCatalogSearchRpc(JsonNode id, JsonNode params) {
     return ResponseEntity.ok(
         jsonRpcResult(id, buildCatalogSearchResult(parseSearchRequest(params))));
@@ -218,6 +280,13 @@ public class McpController {
     ObjectNode toolsCap = MAPPER.createObjectNode();
     toolsCap.put("listChanged", initResult.capabilities().tools().listChanged());
     capabilities.set("tools", toolsCap);
+    ObjectNode promptsCap = MAPPER.createObjectNode();
+    promptsCap.put("listChanged", initResult.capabilities().prompts().listChanged());
+    capabilities.set("prompts", promptsCap);
+    ObjectNode resourcesCap = MAPPER.createObjectNode();
+    resourcesCap.put("listChanged", initResult.capabilities().resources().listChanged());
+    resourcesCap.put("read", initResult.capabilities().resources().read());
+    capabilities.set("resources", resourcesCap);
     ObjectNode catalogCap = MAPPER.createObjectNode();
     catalogCap.put("list", initResult.capabilities().catalog().list());
     catalogCap.put("search", initResult.capabilities().catalog().search());
@@ -301,6 +370,246 @@ public class McpController {
     result.put("toolCount", tools.size());
     result.set("domains", domains);
     return result;
+  }
+
+  private ObjectNode buildPromptsListResult() {
+    ObjectNode result = MAPPER.createObjectNode();
+    ArrayNode prompts = MAPPER.createArrayNode();
+
+    prompts.add(
+        promptSummary(
+            "explore_catalog",
+            "Explore Catalog",
+            "Review the catalog overview resource and summarize the available domains, categories, and next discovery steps."));
+    prompts.add(
+        promptSummary(
+            "explore_domain",
+            "Explore Domain",
+            "Review a specific domain summary resource and explain the most relevant tools for that domain.",
+            argumentDefinition(
+                "domain", "Domain name from catalog/list or resources/list.", true)));
+    prompts.add(
+        promptSummary(
+            "choose_tool_for_task",
+            "Choose Tool For Task",
+            "Use the discovery metadata to recommend the best tool for a task and explain the required arguments.",
+            argumentDefinition(
+                "task", "Plain-language task or goal to match against the catalog.", true),
+            argumentDefinition(
+                "domain", "Optional domain to narrow the prompt to a known group.", false)));
+
+    result.set("prompts", prompts);
+    return result;
+  }
+
+  private ObjectNode buildPromptGetResult(String promptName, JsonNode arguments) {
+    return switch (promptName) {
+      case "explore_catalog" ->
+          promptResult(
+              "Explore the full catalog overview before choosing a tool.",
+              "Review the embedded catalog overview. Summarize the available domains, highlight the most likely starting points, and suggest 2-3 next catalog or tool actions before executing anything.",
+              CATALOG_OVERVIEW_URI);
+      case "explore_domain" -> buildExploreDomainPrompt(arguments);
+      case "choose_tool_for_task" -> buildChooseToolPrompt(arguments);
+      default -> null;
+    };
+  }
+
+  private ObjectNode buildExploreDomainPrompt(JsonNode arguments) {
+    String domain = requiredPromptArgument(arguments, "domain");
+    String resourceUri = CATALOG_DOMAIN_URI_PREFIX + domain;
+    if (buildResourcesReadResult(resourceUri) == null) {
+      throw new IllegalArgumentException("Unknown resource: " + resourceUri);
+    }
+
+    return promptResult(
+        "Explore the '" + domain + "' domain and recommend the best next tool choices.",
+        "Review the embedded domain summary for '"
+            + domain
+            + "'. Explain the domain's available tools, identify the strongest candidates for common tasks, and point out any arguments a client should gather before calling a tool.",
+        resourceUri);
+  }
+
+  private ObjectNode buildChooseToolPrompt(JsonNode arguments) {
+    String task = requiredPromptArgument(arguments, "task");
+    String domain = optionalPromptArgument(arguments, "domain");
+    String resourceUri =
+        domain == null || domain.isBlank()
+            ? CATALOG_OVERVIEW_URI
+            : CATALOG_DOMAIN_URI_PREFIX + domain;
+
+    if (buildResourcesReadResult(resourceUri) == null) {
+      throw new IllegalArgumentException("Unknown resource: " + resourceUri);
+    }
+
+    String instruction =
+        domain == null || domain.isBlank()
+            ? "A user wants to: "
+                + task
+                + "\n\nReview the embedded catalog overview and recommend the best tool to call next. Explain why it fits, what arguments are likely required, and whether the client should narrow further with catalog/search before executing."
+            : "A user wants to: "
+                + task
+                + "\n\nThe likely domain is '"
+                + domain
+                + "'. Review the embedded domain summary and recommend the best tool to call next. Explain why it fits, what arguments are likely required, and whether the client should still use catalog/search before executing.";
+
+    return promptResult(
+        "Recommend the most relevant tool for a task using the discovery summaries.",
+        instruction,
+        resourceUri);
+  }
+
+  private ObjectNode promptResult(String description, String instruction, String resourceUri) {
+    ObjectNode resourceResult = buildResourcesReadResult(resourceUri);
+    if (resourceResult == null) {
+      return null;
+    }
+
+    ObjectNode result = MAPPER.createObjectNode();
+    result.put("description", description);
+
+    ArrayNode messages = MAPPER.createArrayNode();
+    ObjectNode textMessage = MAPPER.createObjectNode();
+    textMessage.put("role", "user");
+    ObjectNode textContent = MAPPER.createObjectNode();
+    textContent.put("type", "text");
+    textContent.put("text", instruction);
+    textMessage.set("content", textContent);
+    messages.add(textMessage);
+
+    JsonNode resourceContent = resourceResult.path("contents").get(0);
+    ObjectNode resourceMessage = MAPPER.createObjectNode();
+    resourceMessage.put("role", "user");
+    ObjectNode resourceWrapper = MAPPER.createObjectNode();
+    resourceWrapper.put("type", "resource");
+    ObjectNode resourceNode = MAPPER.createObjectNode();
+    resourceNode.put("uri", resourceContent.path("uri").asText());
+    resourceNode.put("mimeType", resourceContent.path("mimeType").asText());
+    resourceNode.put("text", resourceContent.path("text").asText());
+    resourceWrapper.set("resource", resourceNode);
+    resourceMessage.set("content", resourceWrapper);
+    messages.add(resourceMessage);
+
+    result.set("messages", messages);
+    return result;
+  }
+
+  private ObjectNode buildResourcesListResult() {
+    ObjectNode result = MAPPER.createObjectNode();
+    ArrayNode resources = MAPPER.createArrayNode();
+
+    ObjectNode overview = MAPPER.createObjectNode();
+    overview.put("uri", CATALOG_OVERVIEW_URI);
+    overview.put("name", "Catalog Overview");
+    overview.put("description", "Grouped discovery summary for all published GraphQL MCP tools.");
+    overview.put("mimeType", "application/json");
+    resources.add(overview);
+
+    for (String domainName : buildGroupedTools().keySet()) {
+      ObjectNode domainResource = MAPPER.createObjectNode();
+      domainResource.put("uri", CATALOG_DOMAIN_URI_PREFIX + domainName);
+      domainResource.put("name", "Domain Summary: " + domainName);
+      domainResource.put("description", "Discovery summary for the '" + domainName + "' domain.");
+      domainResource.put("mimeType", "application/json");
+      resources.add(domainResource);
+    }
+
+    result.set("resources", resources);
+    return result;
+  }
+
+  private ObjectNode buildResourcesReadResult(String uri) {
+    String text;
+    if (CATALOG_OVERVIEW_URI.equalsIgnoreCase(uri)) {
+      text = buildCatalogResult().toString();
+    } else if (uri.regionMatches(
+        true, 0, CATALOG_DOMAIN_URI_PREFIX, 0, CATALOG_DOMAIN_URI_PREFIX.length())) {
+      String domainName = uri.substring(CATALOG_DOMAIN_URI_PREFIX.length());
+      ObjectNode domainSummary = buildDomainResource(domainName);
+      if (domainSummary == null) {
+        return null;
+      }
+      text = domainSummary.toString();
+    } else {
+      return null;
+    }
+
+    ObjectNode result = MAPPER.createObjectNode();
+    ArrayNode contents = MAPPER.createArrayNode();
+    ObjectNode content = MAPPER.createObjectNode();
+    content.put("uri", uri);
+    content.put("mimeType", "application/json");
+    content.put("text", text);
+    contents.add(content);
+    result.set("contents", contents);
+    return result;
+  }
+
+  private ObjectNode buildDomainResource(String domainName) {
+    List<ToolDescriptor> domainTools = buildGroupedTools().get(domainName);
+    if (domainTools == null) {
+      return null;
+    }
+
+    ObjectNode resource = MAPPER.createObjectNode();
+    resource.put("kind", "domainSummary");
+    resource.put("domain", domainName);
+    resource.put("toolCount", domainTools.size());
+
+    ArrayNode categories = MAPPER.createArrayNode();
+    domainTools.stream()
+        .map(ToolDescriptor::category)
+        .filter(Objects::nonNull)
+        .distinct()
+        .sorted()
+        .forEach(categories::add);
+    resource.set("categories", categories);
+
+    ArrayNode tags = MAPPER.createArrayNode();
+    domainTools.stream()
+        .flatMap(tool -> tool.tags().stream())
+        .filter(Objects::nonNull)
+        .distinct()
+        .sorted()
+        .forEach(tags::add);
+    resource.set("tags", tags);
+
+    TreeSet<String> intents = new TreeSet<>();
+    TreeSet<String> keywords = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+    ArrayNode toolsNode = MAPPER.createArrayNode();
+    domainTools.stream()
+        .sorted(Comparator.comparing(ToolDescriptor::name))
+        .forEach(
+            tool -> {
+              ObjectNode toolNode = MAPPER.createObjectNode();
+              toolNode.put("name", tool.name());
+              toolNode.put("description", tool.description());
+              toolNode.put("category", tool.category());
+              toolNode.put("operationType", tool.operationType().name().toLowerCase(Locale.ROOT));
+              toolNode.put("fieldName", tool.graphQLFieldName());
+              toolNode.set("tags", MAPPER.valueToTree(tool.tags()));
+              if (tool.semanticHints() != null) {
+                toolNode.set("semanticHints", MAPPER.valueToTree(tool.semanticHints()));
+                if (tool.semanticHints().intent() != null
+                    && !tool.semanticHints().intent().isBlank()) {
+                  intents.add(tool.semanticHints().intent());
+                }
+                for (String keyword : tool.semanticHints().keywords()) {
+                  if (keyword != null && !keyword.isBlank()) {
+                    keywords.add(keyword);
+                  }
+                }
+              }
+              toolsNode.add(toolNode);
+            });
+    resource.set("tools", toolsNode);
+
+    ObjectNode semanticHints = MAPPER.createObjectNode();
+    semanticHints.set("intents", MAPPER.valueToTree(intents));
+    semanticHints.set("keywords", MAPPER.valueToTree(keywords));
+    resource.set("semanticHints", semanticHints);
+
+    return resource;
   }
 
   private ObjectNode buildCatalogSearchResult(CatalogSearchRequest request) {
@@ -614,5 +923,55 @@ public class McpController {
       List<String> tags,
       int limit) {}
 
+  private ObjectNode promptSummary(
+      String name, String title, String description, ObjectNode... arguments) {
+    ObjectNode prompt = MAPPER.createObjectNode();
+    prompt.put("name", name);
+    prompt.put("title", title);
+    prompt.put("description", description);
+    ArrayNode argumentArray = MAPPER.createArrayNode();
+    for (ObjectNode argument : arguments) {
+      argumentArray.add(argument);
+    }
+    prompt.set("arguments", argumentArray);
+    return prompt;
+  }
+
+  private ObjectNode argumentDefinition(String name, String description, boolean required) {
+    ObjectNode argument = MAPPER.createObjectNode();
+    argument.put("name", name);
+    argument.put("description", description);
+    argument.put("required", required);
+    return argument;
+  }
+
+  private Map<String, List<ToolDescriptor>> buildGroupedTools() {
+    Map<String, List<ToolDescriptor>> groupedTools = new TreeMap<>();
+    for (ToolDescriptor tool : tools) {
+      groupedTools.computeIfAbsent(tool.domainGroup(), key -> new ArrayList<>()).add(tool);
+    }
+    return groupedTools;
+  }
+
+  private static final String CATALOG_OVERVIEW_URI = "graphql-mcp://catalog/overview";
+  private static final String CATALOG_DOMAIN_URI_PREFIX = "graphql-mcp://catalog/domain/";
+
   private record SearchMatch(ToolDescriptor tool, int score) {}
+
+  private String requiredPromptArgument(JsonNode arguments, String name) {
+    String value = optionalPromptArgument(arguments, name);
+    if (value == null || value.isBlank()) {
+      throw new IllegalArgumentException("Missing required prompt argument: " + name);
+    }
+    return value;
+  }
+
+  private String optionalPromptArgument(JsonNode arguments, String name) {
+    if (arguments == null || !arguments.hasNonNull(name)) {
+      return null;
+    }
+
+    String value = arguments.path(name).asText(null);
+    return value == null || value.isBlank() ? null : value;
+  }
 }
