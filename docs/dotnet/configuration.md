@@ -5,6 +5,16 @@
 ```csharp
 builder.Services.AddHotChocolateMcp(options =>
 {
+    // --- Reusable presets / profiles ---
+    options.PolicyPreset = McpPolicyPreset.Curated; // Balanced | Curated | Strict | Exploratory
+    options.PolicyProfile = new McpPolicyProfile
+    {
+        Name = "commerce-api",
+        IncludedDomains = ["order", "invoice"],
+        MinDescriptionLength = 12,
+        MaxArgumentComplexity = 60
+    };
+
     // --- Naming ---
     options.ToolPrefix = "myapi";                    // Prefix for all tool names
     options.NamingPolicy = ToolNamingPolicy.VerbNoun; // VerbNoun | Raw | PrefixedRaw
@@ -112,6 +122,8 @@ Same as Raw but prefix is always applied. Without a prefix, identical to Raw.
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
+| `PolicyPreset` | `McpPolicyPreset` | `Balanced` | Built-in policy baseline |
+| `PolicyProfile` | `McpPolicyProfile?` | `null` | Reusable override layer applied on top of the preset |
 | `ToolPrefix` | `string?` | `null` | Tool name prefix |
 | `NamingPolicy` | `ToolNamingPolicy` | `VerbNoun` | How tool names are derived |
 | `AllowMutations` | `bool` | `false` | Expose mutation fields as tools |
@@ -128,3 +140,13 @@ Same as Raw but prefix is always applied. Without a prefix, identical to Raw.
 | `ExcludedDomains` | `HashSet<string>` | `[]` | Skip tools from these inferred domains |
 | `Authorization.Mode` | `McpAuthMode` | `None` | Auth mode |
 | `Transport` | `McpTransport` | `StreamableHttp` | Transport protocol |
+
+## Presets And Profiles
+
+The effective policy surface is resolved in this order:
+
+1. built-in preset
+2. optional `PolicyProfile`
+3. top-level options that differ from the default baseline
+
+Use presets when you want a shared starting point, and use `PolicyProfile` when you want a reusable per-API override pack without copying raw values into every registration call. The existing top-level options remain fully supported and are still the simplest direct configuration surface.

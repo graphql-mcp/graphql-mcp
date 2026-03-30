@@ -6,6 +6,17 @@ namespace GraphQL.MCP.Abstractions;
 public sealed class McpOptions
 {
     /// <summary>
+    /// Built-in policy preset applied before profile and explicit overrides.
+    /// Default: Balanced.
+    /// </summary>
+    public McpPolicyPreset PolicyPreset { get; set; } = McpPolicyPreset.Balanced;
+
+    /// <summary>
+    /// Optional reusable policy profile applied on top of the selected preset.
+    /// </summary>
+    public McpPolicyProfile? PolicyProfile { get; set; }
+
+    /// <summary>
     /// Prefix for all generated tool names. Example: "myapi" → "myapi_getUsers".
     /// </summary>
     public string? ToolPrefix { get; set; }

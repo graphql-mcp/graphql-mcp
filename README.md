@@ -27,7 +27,7 @@ Some frameworks are adding native MCP support (e.g., Hot Chocolate 16). graphql-
 | | Native framework MCP | graphql-mcp |
 |---|---|---|
 | Cross-framework support | One framework only | Hot Chocolate, graphql-dotnet, Spring |
-| Curation & policy engine | Varies | Glob-pattern field/type exclusion, mutation blocking, depth limits |
+| Curation & policy engine | Varies | Presets, reusable profiles, glob-pattern field/type exclusion, mutation blocking, depth limits |
 | AI-friendly naming | Varies | VerbNoun, Raw, PrefixedRaw policies with tool prefixes |
 | Observability | Varies | Built-in OpenTelemetry traces + metrics |
 | Portable core | No | Framework-agnostic engine, adapters are thin |
@@ -140,17 +140,22 @@ app.Run();
 ```csharp
 builder.Services.AddHotChocolateMcp(options =>   // or AddGraphQLDotNetMcp
 {
+    options.PolicyPreset = McpPolicyPreset.Curated;
+    options.PolicyProfile = new McpPolicyProfile
+    {
+        Name = "commerce-api",
+        IncludedDomains = ["order", "invoice"],
+        MinDescriptionLength = 12,
+        MaxArgumentComplexity = 60
+    };
+
     options.ToolPrefix = "myapi";
-    options.MaxOutputDepth = 3;
     options.NamingPolicy = ToolNamingPolicy.VerbNoun;
 
     options.AllowMutations = false;
     options.ExcludedFields.Add("internalNotes");
     options.ExcludedTypes.Add("AdminPanel");
-    options.IncludedDomains.Add("order");
     options.ExcludedDomains.Add("admin");
-    options.MaxArgumentComplexity = 75;
-    options.MinDescriptionLength = 12;
 
     options.Authorization.Mode = McpAuthMode.Passthrough;
     options.Transport = McpTransport.StreamableHttp;
@@ -175,18 +180,20 @@ public class App {
 graphql:
   mcp:
     enabled: true
+    policy-preset: curated
+    policy-profile:
+      name: commerce-api
+      included-domains:
+        - book
+      min-description-length: 12
+      max-argument-complexity: 60
     tool-prefix: myapi
-    max-output-depth: 3
     naming-policy: verb-noun
     allow-mutations: false
     excluded-fields:
       - internalData
-    included-domains:
-      - book
     excluded-domains:
       - admin
-    min-description-length: 12
-    max-argument-complexity: 75
     authorization:
       mode: passthrough
     transport: streamable-http
@@ -312,6 +319,7 @@ Restart Claude Desktop. Your GraphQL operations will appear as tools.
 - [x] Advanced MCP prompts (workflow planning, candidate comparison, safe-call prep)
 - [x] AI-friendly discovery (domain grouping, semantic hints, grouped catalogs, and catalog search)
 - [x] Curated exploration workflow and reusable request assets for the sample apps
+- [x] Reusable policy presets and profiles
 - [ ] OAuth 2.1 metadata support
 - [ ] stdio transport
 - [ ] Netflix DGS adapter

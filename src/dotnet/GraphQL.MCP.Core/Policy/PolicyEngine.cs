@@ -23,7 +23,7 @@ public sealed partial class PolicyEngine : IMcpPolicy
 
     public PolicyEngine(IOptions<McpOptions> options, ILogger<PolicyEngine> logger)
     {
-        _options = options.Value;
+        _options = McpPolicyProfiles.Resolve(options.Value);
         _logger = logger;
 
         // Pre-compile glob patterns for ExcludedFields
