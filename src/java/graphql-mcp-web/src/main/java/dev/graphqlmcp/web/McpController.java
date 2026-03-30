@@ -397,6 +397,28 @@ public class McpController {
                 "task", "Plain-language task or goal to match against the catalog.", true),
             argumentDefinition(
                 "domain", "Optional domain to narrow the prompt to a known group.", false)));
+    prompts.add(
+        promptSummary(
+            "plan_task_workflow",
+            "Plan Task Workflow",
+            "Compose a discovery plan for a task using the reusable playbooks and catalog summaries.",
+            argumentDefinition("task", "Plain-language task or goal to plan around.", true),
+            argumentDefinition("domain", "Optional domain to focus the workflow on.", false)));
+    prompts.add(
+        promptSummary(
+            "compare_tools_for_task",
+            "Compare Tools For Task",
+            "Compare the best candidate tools for a task before execution.",
+            argumentDefinition(
+                "task", "Plain-language task or goal to compare candidate tools for.", true),
+            argumentDefinition("domain", "Optional domain to narrow the comparison.", false)));
+    prompts.add(
+        promptSummary(
+            "prepare_tool_call",
+            "Prepare Tool Call",
+            "Review a tool summary and safe-call playbook before executing a specific tool.",
+            argumentDefinition("tool", "Published MCP tool name to prepare for execution.", true),
+            argumentDefinition("task", "Optional task context for the planned call.", false)));
 
     result.set("prompts", prompts);
     return result;
@@ -411,6 +433,9 @@ public class McpController {
               CATALOG_OVERVIEW_URI);
       case "explore_domain" -> buildExploreDomainPrompt(arguments);
       case "choose_tool_for_task" -> buildChooseToolPrompt(arguments);
+      case "plan_task_workflow" -> buildPlanTaskWorkflowPrompt(arguments);
+      case "compare_tools_for_task" -> buildCompareToolsPrompt(arguments);
+      case "prepare_tool_call" -> buildPrepareToolCallPrompt(arguments);
       default -> null;
     };
   }
@@ -459,11 +484,98 @@ public class McpController {
         resourceUri);
   }
 
-  private ObjectNode promptResult(String description, String instruction, String resourceUri) {
-    ObjectNode resourceResult = buildResourcesReadResult(resourceUri);
-    if (resourceResult == null) {
-      return null;
+  private ObjectNode buildPlanTaskWorkflowPrompt(JsonNode arguments) {
+    String task = requiredPromptArgument(arguments, "task");
+    String domain = optionalPromptArgument(arguments, "domain");
+    String summaryResourceUri =
+        domain == null || domain.isBlank()
+            ? CATALOG_OVERVIEW_URI
+            : CATALOG_DOMAIN_URI_PREFIX + domain;
+
+    if (buildResourcesReadResult(summaryResourceUri) == null) {
+      throw new IllegalArgumentException("Unknown resource: " + summaryResourceUri);
     }
+
+    String instruction =
+        domain == null || domain.isBlank()
+            ? "A user wants to: "
+                + task
+                + "\n\nUse the embedded discovery playbook and catalog overview to propose the best step-by-step exploration workflow. Explain when to use resources/read, catalog/search, prompts/get, and tools/call, and identify what information the client should gather before execution."
+            : "A user wants to: "
+                + task
+                + "\n\nThe likely domain is '"
+                + domain
+                + "'. Use the embedded domain investigation playbook and domain summary to propose the best step-by-step workflow. Explain when to read resources, search inside the domain, compare tools, and what arguments should be gathered before execution.";
+
+    return promptResult(
+        "Plan a reusable discovery workflow for a task using the advanced discovery packs.",
+        instruction,
+        domain == null || domain.isBlank()
+            ? DISCOVERY_PACK_URI_PREFIX + "start-here"
+            : DISCOVERY_PACK_URI_PREFIX + "investigate-domain",
+        summaryResourceUri);
+  }
+
+  private ObjectNode buildCompareToolsPrompt(JsonNode arguments) {
+    String task = requiredPromptArgument(arguments, "task");
+    String domain = optionalPromptArgument(arguments, "domain");
+    String summaryResourceUri =
+        domain == null || domain.isBlank()
+            ? CATALOG_OVERVIEW_URI
+            : CATALOG_DOMAIN_URI_PREFIX + domain;
+
+    if (buildResourcesReadResult(summaryResourceUri) == null) {
+      throw new IllegalArgumentException("Unknown resource: " + summaryResourceUri);
+    }
+
+    String instruction =
+        domain == null || domain.isBlank()
+            ? "A user wants to: "
+                + task
+                + "\n\nUse the embedded discovery pack and catalog summary to compare the 2-3 best candidate tools. Explain the trade-offs between them, when catalog/search should be used first, and what arguments or filters are likely needed before execution."
+            : "A user wants to: "
+                + task
+                + "\n\nThe likely domain is '"
+                + domain
+                + "'. Use the embedded discovery pack and domain summary to compare the strongest candidate tools in that domain. Explain the trade-offs, expected arguments, and the safest next step before a tool call.";
+
+    return promptResult(
+        "Compare likely candidate tools for a task before choosing one to execute.",
+        instruction,
+        domain == null || domain.isBlank()
+            ? DISCOVERY_PACK_URI_PREFIX + "start-here"
+            : DISCOVERY_PACK_URI_PREFIX + "investigate-domain",
+        summaryResourceUri);
+  }
+
+  private ObjectNode buildPrepareToolCallPrompt(JsonNode arguments) {
+    String toolName = requiredPromptArgument(arguments, "tool");
+    String task = optionalPromptArgument(arguments, "task");
+    String toolResourceUri = CATALOG_TOOL_URI_PREFIX + toolName;
+
+    if (buildResourcesReadResult(toolResourceUri) == null) {
+      throw new IllegalArgumentException("Unknown resource: " + toolResourceUri);
+    }
+
+    String instruction =
+        task == null || task.isBlank()
+            ? "Review the embedded safe-call playbook and tool summary for '"
+                + toolName
+                + "'. Identify the required arguments, any likely ambiguities, any follow-up discovery steps still needed, and a safe execution plan before calling the tool."
+            : "A user wants to: "
+                + task
+                + "\n\nReview the embedded safe-call playbook and tool summary for '"
+                + toolName
+                + "'. Identify the required arguments, any likely ambiguities, whether additional discovery is still needed, and a safe execution plan before calling the tool.";
+
+    return promptResult(
+        "Prepare a safe execution plan for '" + toolName + "' using the advanced resource packs.",
+        instruction,
+        DISCOVERY_PACK_URI_PREFIX + "safe-tool-call",
+        toolResourceUri);
+  }
+
+  private ObjectNode promptResult(String description, String instruction, String... resourceUris) {
 
     ObjectNode result = MAPPER.createObjectNode();
     result.put("description", description);
@@ -477,18 +589,25 @@ public class McpController {
     textMessage.set("content", textContent);
     messages.add(textMessage);
 
-    JsonNode resourceContent = resourceResult.path("contents").get(0);
-    ObjectNode resourceMessage = MAPPER.createObjectNode();
-    resourceMessage.put("role", "user");
-    ObjectNode resourceWrapper = MAPPER.createObjectNode();
-    resourceWrapper.put("type", "resource");
-    ObjectNode resourceNode = MAPPER.createObjectNode();
-    resourceNode.put("uri", resourceContent.path("uri").asText());
-    resourceNode.put("mimeType", resourceContent.path("mimeType").asText());
-    resourceNode.put("text", resourceContent.path("text").asText());
-    resourceWrapper.set("resource", resourceNode);
-    resourceMessage.set("content", resourceWrapper);
-    messages.add(resourceMessage);
+    for (String resourceUri : resourceUris) {
+      ObjectNode resourceResult = buildResourcesReadResult(resourceUri);
+      if (resourceResult == null) {
+        throw new IllegalArgumentException("Unknown resource: " + resourceUri);
+      }
+
+      JsonNode resourceContent = resourceResult.path("contents").get(0);
+      ObjectNode resourceMessage = MAPPER.createObjectNode();
+      resourceMessage.put("role", "user");
+      ObjectNode resourceWrapper = MAPPER.createObjectNode();
+      resourceWrapper.put("type", "resource");
+      ObjectNode resourceNode = MAPPER.createObjectNode();
+      resourceNode.put("uri", resourceContent.path("uri").asText());
+      resourceNode.put("mimeType", resourceContent.path("mimeType").asText());
+      resourceNode.put("text", resourceContent.path("text").asText());
+      resourceWrapper.set("resource", resourceNode);
+      resourceMessage.set("content", resourceWrapper);
+      messages.add(resourceMessage);
+    }
 
     result.set("messages", messages);
     return result;
@@ -505,6 +624,15 @@ public class McpController {
     overview.put("mimeType", "application/json");
     resources.add(overview);
 
+    for (ResourcePackDefinition pack : buildDiscoveryPacks()) {
+      ObjectNode packResource = MAPPER.createObjectNode();
+      packResource.put("uri", DISCOVERY_PACK_URI_PREFIX + pack.name());
+      packResource.put("name", "Discovery Pack: " + pack.title());
+      packResource.put("description", pack.description());
+      packResource.put("mimeType", "application/json");
+      resources.add(packResource);
+    }
+
     for (String domainName : buildGroupedTools().keySet()) {
       ObjectNode domainResource = MAPPER.createObjectNode();
       domainResource.put("uri", CATALOG_DOMAIN_URI_PREFIX + domainName);
@@ -513,6 +641,19 @@ public class McpController {
       domainResource.put("mimeType", "application/json");
       resources.add(domainResource);
     }
+
+    tools.stream()
+        .sorted(Comparator.comparing(ToolDescriptor::name))
+        .forEach(
+            tool -> {
+              ObjectNode toolResource = MAPPER.createObjectNode();
+              toolResource.put("uri", CATALOG_TOOL_URI_PREFIX + tool.name());
+              toolResource.put("name", "Tool Summary: " + tool.name());
+              toolResource.put(
+                  "description", "Execution-oriented summary for the '" + tool.name() + "' tool.");
+              toolResource.put("mimeType", "application/json");
+              resources.add(toolResource);
+            });
 
     result.set("resources", resources);
     return result;
@@ -530,6 +671,22 @@ public class McpController {
         return null;
       }
       text = domainSummary.toString();
+    } else if (uri.regionMatches(
+        true, 0, CATALOG_TOOL_URI_PREFIX, 0, CATALOG_TOOL_URI_PREFIX.length())) {
+      String toolName = uri.substring(CATALOG_TOOL_URI_PREFIX.length());
+      ObjectNode toolSummary = buildToolResource(toolName);
+      if (toolSummary == null) {
+        return null;
+      }
+      text = toolSummary.toString();
+    } else if (uri.regionMatches(
+        true, 0, DISCOVERY_PACK_URI_PREFIX, 0, DISCOVERY_PACK_URI_PREFIX.length())) {
+      String packName = uri.substring(DISCOVERY_PACK_URI_PREFIX.length());
+      ObjectNode packSummary = buildDiscoveryPackResource(packName);
+      if (packSummary == null) {
+        return null;
+      }
+      text = packSummary.toString();
     } else {
       return null;
     }
@@ -610,6 +767,161 @@ public class McpController {
     resource.set("semanticHints", semanticHints);
 
     return resource;
+  }
+
+  private ObjectNode buildToolResource(String toolName) {
+    ToolDescriptor tool =
+        tools.stream()
+            .filter(entry -> entry.name().equalsIgnoreCase(toolName))
+            .findFirst()
+            .orElse(null);
+    if (tool == null) {
+      return null;
+    }
+
+    ObjectNode resource = MAPPER.createObjectNode();
+    resource.put("kind", "toolSummary");
+    resource.put("name", tool.name());
+    resource.put("description", tool.description());
+    resource.put("domain", tool.domainGroup());
+    resource.put("category", tool.category());
+    resource.put("operationType", tool.operationType().name().toLowerCase(Locale.ROOT));
+    resource.put("fieldName", tool.graphQLFieldName());
+    resource.set("tags", MAPPER.valueToTree(tool.tags()));
+    if (tool.semanticHints() != null) {
+      resource.set("semanticHints", MAPPER.valueToTree(tool.semanticHints()));
+    }
+
+    resource.set("argumentMapping", MAPPER.valueToTree(tool.argumentMapping()));
+    resource.set("inputSchema", MAPPER.valueToTree(tool.inputSchema()));
+
+    List<String> requiredArguments = getRequiredArguments(tool.inputSchema());
+    List<String> optionalArguments =
+        getPropertyNames(tool.inputSchema()).stream()
+            .filter(name -> !requiredArguments.contains(name))
+            .toList();
+    resource.set("requiredArguments", MAPPER.valueToTree(requiredArguments));
+    resource.set("optionalArguments", MAPPER.valueToTree(optionalArguments));
+
+    return resource;
+  }
+
+  private ObjectNode buildDiscoveryPackResource(String packName) {
+    return switch (packName.toLowerCase(Locale.ROOT)) {
+      case "start-here" ->
+          discoveryPack(
+              "start-here",
+              "Discovery Pack: Start Here",
+              "A reusable exploration playbook for unfamiliar schemas or tasks.",
+              List.of(
+                  "You are new to the schema or domain.",
+                  "You need to map a broad task to the right domain or tool."),
+              List.of("explore_catalog", "plan_task_workflow", "choose_tool_for_task"),
+              List.of(CATALOG_OVERVIEW_URI),
+              List.of(
+                  packStep(
+                      1,
+                      "initialize",
+                      "initialize",
+                      null,
+                      "Start the MCP session and discover supported capabilities."),
+                  packStep(
+                      2,
+                      "review_overview",
+                      "resources/read",
+                      CATALOG_OVERVIEW_URI,
+                      "Scan grouped domains, categories, and discovery metadata."),
+                  packStep(
+                      3,
+                      "inspect_groups",
+                      "catalog/list",
+                      null,
+                      "Review grouped domains before narrowing further."),
+                  packStep(
+                      4,
+                      "narrow_candidates",
+                      "catalog/search",
+                      null,
+                      "Search by task keywords, domain, or tags when multiple tools look plausible."),
+                  packStep(
+                      5,
+                      "choose_flow",
+                      "prompts/get",
+                      "choose_tool_for_task",
+                      "Let the client explain the best next tool before executing anything.")),
+              null);
+      case "investigate-domain" ->
+          discoveryPack(
+              "investigate-domain",
+              "Discovery Pack: Investigate Domain",
+              "A reusable playbook for drilling into one domain and comparing tools.",
+              List.of(
+                  "You already know the likely domain.",
+                  "You need to compare multiple tools inside one domain."),
+              List.of("explore_domain", "compare_tools_for_task", "plan_task_workflow"),
+              List.of("graphql-mcp://catalog/domain/<domain>"),
+              List.of(
+                  packStep(
+                      1,
+                      "read_domain_summary",
+                      "resources/read",
+                      "graphql-mcp://catalog/domain/<domain>",
+                      "Review categories, tags, semantic hints, and available tools for the domain."),
+                  packStep(
+                      2,
+                      "domain_search",
+                      "catalog/search",
+                      null,
+                      "Search within the domain when the summary still contains multiple plausible tools."),
+                  packStep(
+                      3,
+                      "compare_candidates",
+                      "prompts/get",
+                      "compare_tools_for_task",
+                      "Ask the client to compare the best candidate tools and call out trade-offs."),
+                  packStep(
+                      4,
+                      "inspect_tool_summary",
+                      "resources/read",
+                      "graphql-mcp://catalog/tool/<tool>",
+                      "Read the tool summary once a likely candidate emerges.")),
+              null);
+      case "safe-tool-call" ->
+          discoveryPack(
+              "safe-tool-call",
+              "Discovery Pack: Safe Tool Call",
+              "A reusable execution checklist before calling an MCP tool.",
+              List.of(
+                  "You have selected a likely tool and need to confirm arguments.",
+                  "You want to avoid premature or unsafe execution."),
+              List.of("prepare_tool_call", "choose_tool_for_task"),
+              List.of("graphql-mcp://catalog/tool/<tool>"),
+              List.of(
+                  packStep(
+                      1,
+                      "read_tool_summary",
+                      "resources/read",
+                      "graphql-mcp://catalog/tool/<tool>",
+                      "Inspect required arguments, optional arguments, and semantic hints."),
+                  packStep(
+                      2,
+                      "prepare_execution",
+                      "prompts/get",
+                      "prepare_tool_call",
+                      "Have the client produce a safe execution plan before tools/call."),
+                  packStep(
+                      3,
+                      "execute_tool",
+                      "tools/call",
+                      null,
+                      "Call the tool once arguments and ambiguities are resolved.")),
+              List.of(
+                  "Confirm the tool is the right match for the task.",
+                  "List required arguments and note any missing user input.",
+                  "Review optional filters that could narrow the result safely.",
+                  "Decide whether another catalog/search step is needed before execution."));
+      default -> null;
+    };
   }
 
   private ObjectNode buildCatalogSearchResult(CatalogSearchRequest request) {
@@ -945,6 +1257,47 @@ public class McpController {
     return argument;
   }
 
+  private ObjectNode discoveryPack(
+      String pack,
+      String title,
+      String description,
+      List<String> whenToUse,
+      List<String> recommendedPrompts,
+      List<String> recommendedResources,
+      List<ObjectNode> steps,
+      List<String> checklist) {
+    ObjectNode resource = MAPPER.createObjectNode();
+    resource.put("kind", "resourcePack");
+    resource.put("pack", pack);
+    resource.put("title", title);
+    resource.put("description", description);
+    resource.set("whenToUse", MAPPER.valueToTree(whenToUse));
+    resource.set("recommendedPrompts", MAPPER.valueToTree(recommendedPrompts));
+    resource.set("recommendedResources", MAPPER.valueToTree(recommendedResources));
+    resource.set("steps", MAPPER.valueToTree(steps));
+    if (checklist != null) {
+      resource.set("checklist", MAPPER.valueToTree(checklist));
+    }
+    return resource;
+  }
+
+  private ObjectNode packStep(
+      int order, String action, String method, String target, String purpose) {
+    ObjectNode step = MAPPER.createObjectNode();
+    step.put("order", order);
+    step.put("action", action);
+    step.put("method", method);
+    if (target != null) {
+      if ("prompts/get".equals(method)) {
+        step.put("prompt", target);
+      } else {
+        step.put("target", target);
+      }
+    }
+    step.put("purpose", purpose);
+    return step;
+  }
+
   private Map<String, List<ToolDescriptor>> buildGroupedTools() {
     Map<String, List<ToolDescriptor>> groupedTools = new TreeMap<>();
     for (ToolDescriptor tool : tools) {
@@ -955,8 +1308,59 @@ public class McpController {
 
   private static final String CATALOG_OVERVIEW_URI = "graphql-mcp://catalog/overview";
   private static final String CATALOG_DOMAIN_URI_PREFIX = "graphql-mcp://catalog/domain/";
+  private static final String CATALOG_TOOL_URI_PREFIX = "graphql-mcp://catalog/tool/";
+  private static final String DISCOVERY_PACK_URI_PREFIX = "graphql-mcp://packs/discovery/";
 
   private record SearchMatch(ToolDescriptor tool, int score) {}
+
+  private record ResourcePackDefinition(String name, String title, String description) {}
+
+  private List<ResourcePackDefinition> buildDiscoveryPacks() {
+    return List.of(
+        new ResourcePackDefinition(
+            "start-here",
+            "Start Here",
+            "Reusable exploration playbook for unfamiliar tasks or schemas."),
+        new ResourcePackDefinition(
+            "investigate-domain",
+            "Investigate Domain",
+            "Reusable playbook for drilling into one domain and comparing tools."),
+        new ResourcePackDefinition(
+            "safe-tool-call",
+            "Safe Tool Call",
+            "Reusable execution checklist before calling a tool."));
+  }
+
+  private List<String> getRequiredArguments(Map<String, Object> inputSchema) {
+    Object required = inputSchema.get("required");
+    if (!(required instanceof List<?> requiredList)) {
+      return List.of();
+    }
+
+    List<String> values = new ArrayList<>();
+    for (Object item : requiredList) {
+      if (item instanceof String value && !value.isBlank()) {
+        values.add(value);
+      }
+    }
+    return List.copyOf(values);
+  }
+
+  private List<String> getPropertyNames(Map<String, Object> inputSchema) {
+    Object properties = inputSchema.get("properties");
+    if (!(properties instanceof Map<?, ?> propertyMap)) {
+      return List.of();
+    }
+
+    List<String> values = new ArrayList<>();
+    for (Object key : propertyMap.keySet()) {
+      if (key instanceof String value && !value.isBlank()) {
+        values.add(value);
+      }
+    }
+    values.sort(String::compareTo);
+    return List.copyOf(values);
+  }
 
   private String requiredPromptArgument(JsonNode arguments, String name) {
     String value = optionalPromptArgument(arguments, name);

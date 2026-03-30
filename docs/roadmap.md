@@ -12,6 +12,7 @@ This roadmap tracks the cross-framework direction of graphql-mcp.
 - curated exploration walkthroughs and reusable request assets for the sample apps
 - MCP prompts for exploration and tool-selection workflows
 - MCP resources for catalog overview and domain summaries
+- advanced prompt/resource packs for workflow planning, candidate comparison, safe-call prep, tool summaries, and reusable discovery playbooks
 - Java Spring GraphQL alpha-preview track
 - CI/CD for NuGet and Maven Central
 - docs and example apps for .NET and Java
@@ -24,12 +25,10 @@ This roadmap tracks the cross-framework direction of graphql-mcp.
 ## Next Differentiators
 
 - stronger domain inference and grouping heuristics for large schemas
-- more advanced prompts and resource packs on top of the current walkthroughs
 - more advanced policy controls around complexity and curation
 
 ## Later
 
-- MCP prompts
 - OAuth 2.1 metadata support
 - stdio transport
 - Netflix DGS adapter

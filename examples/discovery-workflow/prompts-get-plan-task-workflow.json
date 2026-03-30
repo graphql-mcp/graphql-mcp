@@ -1,0 +1,11 @@
+{
+  "jsonrpc": "2.0",
+  "id": 23,
+  "method": "prompts/get",
+  "params": {
+    "name": "plan_task_workflow",
+    "arguments": {
+      "task": "find the right book lookup workflow"
+    }
+  }
+}

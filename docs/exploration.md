@@ -57,9 +57,15 @@ The repo now includes a reusable request pack in
 - [prompts-get-explore-catalog.json](../examples/discovery-workflow/prompts-get-explore-catalog.json)
 - [prompts-get-explore-domain.json](../examples/discovery-workflow/prompts-get-explore-domain.json)
 - [prompts-get-choose-tool.json](../examples/discovery-workflow/prompts-get-choose-tool.json)
+- [prompts-get-plan-task-workflow.json](../examples/discovery-workflow/prompts-get-plan-task-workflow.json)
+- [prompts-get-compare-tools.json](../examples/discovery-workflow/prompts-get-compare-tools.json)
+- [prompts-get-prepare-tool-call.json](../examples/discovery-workflow/prompts-get-prepare-tool-call.json)
 - [resources-list.json](../examples/discovery-workflow/resources-list.json)
 - [resources-read-overview.json](../examples/discovery-workflow/resources-read-overview.json)
 - [resources-read-book-domain.json](../examples/discovery-workflow/resources-read-book-domain.json)
+- [resources-read-book-tool.json](../examples/discovery-workflow/resources-read-book-tool.json)
+- [resources-read-start-pack.json](../examples/discovery-workflow/resources-read-start-pack.json)
+- [resources-read-safe-call-pack.json](../examples/discovery-workflow/resources-read-safe-call-pack.json)
 - [catalog-list.json](../examples/discovery-workflow/catalog-list.json)
 - [catalog-search-book.json](../examples/discovery-workflow/catalog-search-book.json)
 - [tools-call-hello.json](../examples/discovery-workflow/tools-call-hello.json)
@@ -95,6 +101,7 @@ Send [prompts-list.json](../examples/discovery-workflow/prompts-list.json).
 Expected outcome:
 
 - reusable workflow templates such as `explore_catalog`, `explore_domain`, and `choose_tool_for_task`
+- advanced workflow templates such as `plan_task_workflow`, `compare_tools_for_task`, and `prepare_tool_call`
 - structured prompt arguments instead of free-form client conventions
 
 ### 4. Fetch A Prompt
@@ -117,6 +124,8 @@ Expected outcome:
 
 - a catalog overview resource
 - one domain summary resource per discovered domain
+- one tool summary resource per published tool
+- reusable discovery pack resources
 - stable `graphql-mcp://...` resource URIs that a client can read later
 
 ### 6. Read A Resource Summary
@@ -126,7 +135,7 @@ Send [resources-read-overview.json](../examples/discovery-workflow/resources-rea
 
 Expected outcome:
 
-- a cached-friendly JSON summary of the full catalog or a single domain
+- a cached-friendly JSON summary of the full catalog, a single domain, a single tool, or a reusable playbook
 - grouped tool metadata without having to recompute a live search result
 
 ### 7. Inspect Catalog Groups
@@ -172,12 +181,10 @@ This loop shows the intended client experience for larger schemas:
 
 - `tools/list` is the raw capability surface
 - `prompts/get` provides reusable workflows on top of that surface
-- `resources/read` gives stable summary documents
+- `resources/read` gives stable summary and playbook documents
 - `catalog/list` gives grouped summaries
 - `catalog/search` narrows the candidate set
 - `tools/call` executes the selected operation
-
-That is the current discovery story before heavier MCP resources and prompts arrive later.
 
 ## Related Docs
 

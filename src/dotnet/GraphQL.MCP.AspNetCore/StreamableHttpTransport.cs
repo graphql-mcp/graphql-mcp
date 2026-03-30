@@ -193,20 +193,7 @@ public sealed class StreamableHttpTransport
     private async Task HandleResourcesList(HttpContext context, object? id)
     {
         var catalog = BuildCatalogSummary();
-        var resources = new List<ResourceSummary>
-        {
-            new(
-                CatalogOverviewUri,
-                "Catalog Overview",
-                "Grouped discovery summary for all published GraphQL MCP tools.",
-                "application/json")
-        };
-
-        resources.AddRange(catalog.Domains.Select(domain => new ResourceSummary(
-            $"{CatalogDomainUriPrefix}{Uri.EscapeDataString(domain.Domain)}",
-            $"Domain Summary: {domain.Domain}",
-            $"Discovery summary for the '{domain.Domain}' domain.",
-            "application/json")));
+        var resources = BuildResourceSummaries(catalog);
 
         var result = new { resources };
         await WriteJsonRpcResult(context, id, JsonSerializer.Serialize(result, JsonOptions));
@@ -516,58 +503,242 @@ public sealed class StreamableHttpTransport
         return new CatalogSummary(domains.Length, _toolRegistry.Tools.Count, domains);
     }
 
+    private IReadOnlyList<ResourceSummary> BuildResourceSummaries(CatalogSummary catalog)
+    {
+        var resources = new List<ResourceSummary>
+        {
+            new(
+                CatalogOverviewUri,
+                "Catalog Overview",
+                "Grouped discovery summary for all published GraphQL MCP tools.",
+                "application/json")
+        };
+
+        resources.AddRange(BuildDiscoveryPackDefinitions().Select(pack => new ResourceSummary(
+            $"{DiscoveryPackUriPrefix}{pack.Name}",
+            $"Discovery Pack: {pack.Title}",
+            pack.Description,
+            "application/json")));
+
+        resources.AddRange(catalog.Domains.Select(domain => new ResourceSummary(
+            $"{CatalogDomainUriPrefix}{Uri.EscapeDataString(domain.Domain)}",
+            $"Domain Summary: {domain.Domain}",
+            $"Discovery summary for the '{domain.Domain}' domain.",
+            "application/json")));
+
+        resources.AddRange(_toolRegistry.Tools
+            .OrderBy(tool => tool.Name, StringComparer.Ordinal)
+            .Select(tool => new ResourceSummary(
+                $"{CatalogToolUriPrefix}{Uri.EscapeDataString(tool.Name)}",
+                $"Tool Summary: {tool.Name}",
+                $"Execution-oriented summary for the '{tool.Name}' tool.",
+                "application/json")));
+
+        return resources;
+    }
+
+    private object BuildCatalogOverviewResource(CatalogSummary catalog) => new
+    {
+        kind = "catalogOverview",
+        serverInfo = new
+        {
+            name = "graphql-mcp",
+            version = typeof(StreamableHttpTransport).Assembly.GetName().Version?.ToString(3) ?? "0.1.0"
+        },
+        capabilities = new
+        {
+            tools = new { listChanged = true },
+            prompts = new { listChanged = true },
+            resources = new { listChanged = true, read = true },
+            catalog = new { list = true, search = true }
+        },
+        domainCount = catalog.DomainCount,
+        toolCount = catalog.ToolCount,
+        domains = catalog.Domains
+    };
+
+    private object? BuildDomainResource(CatalogSummary catalog, string domainName)
+    {
+        var domain = catalog.Domains.FirstOrDefault(entry =>
+            string.Equals(entry.Domain, domainName, StringComparison.OrdinalIgnoreCase));
+        if (domain is null)
+        {
+            return null;
+        }
+
+        return new
+        {
+            kind = "domainSummary",
+            domain = domain.Domain,
+            categories = domain.Categories,
+            tags = domain.Tags,
+            semanticHints = domain.SemanticHints,
+            toolCount = domain.ToolCount,
+            toolNames = domain.ToolNames,
+            tools = domain.Tools
+        };
+    }
+
+    private object? BuildToolResource(string toolName)
+    {
+        var tool = _toolRegistry.Tools.FirstOrDefault(entry =>
+            string.Equals(entry.Name, toolName, StringComparison.OrdinalIgnoreCase));
+        if (tool is null)
+        {
+            return null;
+        }
+
+        var schema = JsonSerializer.Deserialize<object>(tool.InputSchema.RootElement.GetRawText(), JsonOptions);
+        var requiredArguments = GetSchemaStringArray(tool.InputSchema.RootElement, "required");
+        var optionalArguments = GetSchemaPropertyNames(tool.InputSchema.RootElement)
+            .Where(name => !requiredArguments.Contains(name, StringComparer.Ordinal))
+            .ToArray();
+
+        return new
+        {
+            kind = "toolSummary",
+            name = tool.Name,
+            description = tool.Description,
+            domain = tool.Domain,
+            category = tool.Category,
+            operationType = tool.OperationType.ToString().ToLowerInvariant(),
+            fieldName = tool.GraphQLFieldName,
+            tags = tool.Tags,
+            semanticHints = tool.SemanticHints,
+            requiredArguments,
+            optionalArguments,
+            argumentMapping = tool.ArgumentMapping,
+            inputSchema = schema
+        };
+    }
+
+    private object? BuildDiscoveryPackResource(string packName)
+    {
+        return packName.ToLowerInvariant() switch
+        {
+            "start-here" => new
+            {
+                kind = "resourcePack",
+                pack = "start-here",
+                title = "Discovery Pack: Start Here",
+                description = "A reusable exploration playbook for unfamiliar schemas or tasks.",
+                whenToUse = new[]
+                {
+                    "You are new to the schema or domain.",
+                    "You need to map a broad task to the right domain or tool."
+                },
+                recommendedPrompts = new[] { "explore_catalog", "plan_task_workflow", "choose_tool_for_task" },
+                recommendedResources = new[] { CatalogOverviewUri },
+                steps = new[]
+                {
+                    BuildPackStep(1, "initialize", "initialize", null, null, "Start the MCP session and discover supported capabilities."),
+                    BuildPackStep(2, "review_overview", "resources/read", CatalogOverviewUri, null, "Scan grouped domains, categories, and discovery metadata."),
+                    BuildPackStep(3, "inspect_groups", "catalog/list", null, null, "Review grouped domains before narrowing further."),
+                    BuildPackStep(4, "narrow_candidates", "catalog/search", null, null, "Search by task keywords, domain, or tags when multiple tools look plausible."),
+                    BuildPackStep(5, "choose_flow", "prompts/get", null, "choose_tool_for_task", "Let the client explain the best next tool before executing anything.")
+                }
+            },
+            "investigate-domain" => new
+            {
+                kind = "resourcePack",
+                pack = "investigate-domain",
+                title = "Discovery Pack: Investigate Domain",
+                description = "A reusable playbook for drilling into one domain and comparing candidate tools.",
+                whenToUse = new[]
+                {
+                    "You already know the likely domain.",
+                    "You need to compare multiple tools inside one domain."
+                },
+                recommendedPrompts = new[] { "explore_domain", "compare_tools_for_task", "plan_task_workflow" },
+                recommendedResources = new[] { "graphql-mcp://catalog/domain/<domain>" },
+                steps = new[]
+                {
+                    BuildPackStep(1, "read_domain_summary", "resources/read", "graphql-mcp://catalog/domain/<domain>", null, "Review categories, tags, semantic hints, and available tools for the domain."),
+                    BuildPackStep(2, "domain_search", "catalog/search", null, null, "Search within the domain when the summary still contains multiple plausible tools."),
+                    BuildPackStep(3, "compare_candidates", "prompts/get", null, "compare_tools_for_task", "Ask the client to compare the best candidate tools and call out trade-offs."),
+                    BuildPackStep(4, "inspect_tool_summary", "resources/read", "graphql-mcp://catalog/tool/<tool>", null, "Read the tool summary once a likely candidate emerges.")
+                }
+            },
+            "safe-tool-call" => new
+            {
+                kind = "resourcePack",
+                pack = "safe-tool-call",
+                title = "Discovery Pack: Safe Tool Call",
+                description = "A reusable execution checklist before calling an MCP tool.",
+                whenToUse = new[]
+                {
+                    "You have selected a likely tool and need to confirm arguments.",
+                    "You want to avoid premature or unsafe execution."
+                },
+                recommendedPrompts = new[] { "prepare_tool_call", "choose_tool_for_task" },
+                recommendedResources = new[] { "graphql-mcp://catalog/tool/<tool>" },
+                checklist = new[]
+                {
+                    "Confirm the tool is the right match for the task.",
+                    "List required arguments and note any missing user input.",
+                    "Review optional filters that could narrow the result safely.",
+                    "Decide whether another catalog/search step is needed before execution."
+                },
+                steps = new[]
+                {
+                    BuildPackStep(1, "read_tool_summary", "resources/read", "graphql-mcp://catalog/tool/<tool>", null, "Inspect required arguments, optional arguments, and semantic hints."),
+                    BuildPackStep(2, "prepare_execution", "prompts/get", null, "prepare_tool_call", "Have the client produce a safe execution plan before tools/call."),
+                    BuildPackStep(3, "execute_tool", "tools/call", null, null, "Call the tool once arguments and ambiguities are resolved.")
+                }
+            },
+            _ => null
+        };
+    }
+
+    private static IReadOnlyList<ResourcePackDefinition> BuildDiscoveryPackDefinitions() =>
+    [
+        new("start-here", "Start Here", "Reusable exploration playbook for unfamiliar tasks or schemas."),
+        new("investigate-domain", "Investigate Domain", "Reusable playbook for drilling into one domain and comparing tools."),
+        new("safe-tool-call", "Safe Tool Call", "Reusable execution checklist before calling a tool.")
+    ];
+
+    private static ResourcePackStep BuildPackStep(
+        int order,
+        string action,
+        string method,
+        string? target,
+        string? prompt,
+        string purpose) =>
+        new(order, action, method, target, prompt, purpose);
+
     private string? TryBuildResourceContent(string uri)
     {
         var catalog = BuildCatalogSummary();
+        var resource = TryBuildResourceObject(uri, catalog);
+        return resource is null ? null : JsonSerializer.Serialize(resource, JsonOptions);
+    }
 
+    private object? TryBuildResourceObject(string uri, CatalogSummary catalog)
+    {
         if (string.Equals(uri, CatalogOverviewUri, StringComparison.OrdinalIgnoreCase))
         {
-            var overview = new
-            {
-                kind = "catalogOverview",
-                serverInfo = new
-                {
-                    name = "graphql-mcp",
-                    version = typeof(StreamableHttpTransport).Assembly.GetName().Version?.ToString(3) ?? "0.1.0"
-                },
-                capabilities = new
-                {
-                    tools = new { listChanged = true },
-                    resources = new { listChanged = true, read = true },
-                    catalog = new { list = true, search = true }
-                },
-                domainCount = catalog.DomainCount,
-                toolCount = catalog.ToolCount,
-                domains = catalog.Domains
-            };
-
-            return JsonSerializer.Serialize(overview, JsonOptions);
+            return BuildCatalogOverviewResource(catalog);
         }
 
         if (uri.StartsWith(CatalogDomainUriPrefix, StringComparison.OrdinalIgnoreCase))
         {
             var encodedDomain = uri[CatalogDomainUriPrefix.Length..];
             var domainName = Uri.UnescapeDataString(encodedDomain);
-            var domain = catalog.Domains.FirstOrDefault(entry =>
-                string.Equals(entry.Domain, domainName, StringComparison.OrdinalIgnoreCase));
-            if (domain is null)
-            {
-                return null;
-            }
+            return BuildDomainResource(catalog, domainName);
+        }
 
-            var summary = new
-            {
-                kind = "domainSummary",
-                domain = domain.Domain,
-                categories = domain.Categories,
-                tags = domain.Tags,
-                semanticHints = domain.SemanticHints,
-                toolCount = domain.ToolCount,
-                toolNames = domain.ToolNames,
-                tools = domain.Tools
-            };
+        if (uri.StartsWith(CatalogToolUriPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            var encodedToolName = uri[CatalogToolUriPrefix.Length..];
+            var toolName = Uri.UnescapeDataString(encodedToolName);
+            return BuildToolResource(toolName);
+        }
 
-            return JsonSerializer.Serialize(summary, JsonOptions);
+        if (uri.StartsWith(DiscoveryPackUriPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            var encodedPackName = uri[DiscoveryPackUriPrefix.Length..];
+            var packName = Uri.UnescapeDataString(encodedPackName);
+            return BuildDiscoveryPackResource(packName);
         }
 
         return null;
@@ -592,6 +763,30 @@ public sealed class StreamableHttpTransport
             [
                 new PromptArgumentDefinition("task", "Plain-language task or goal to match against the catalog.", true),
                 new PromptArgumentDefinition("domain", "Optional domain to narrow the prompt to a known group.", false)
+            ]),
+        new(
+            "plan_task_workflow",
+            "Plan Task Workflow",
+            "Compose a discovery plan for a task using the reusable playbooks and catalog summaries.",
+            [
+                new PromptArgumentDefinition("task", "Plain-language task or goal to plan around.", true),
+                new PromptArgumentDefinition("domain", "Optional domain to focus the workflow on.", false)
+            ]),
+        new(
+            "compare_tools_for_task",
+            "Compare Tools For Task",
+            "Compare the best candidate tools for a task before execution.",
+            [
+                new PromptArgumentDefinition("task", "Plain-language task or goal to compare candidate tools for.", true),
+                new PromptArgumentDefinition("domain", "Optional domain to narrow the comparison.", false)
+            ]),
+        new(
+            "prepare_tool_call",
+            "Prepare Tool Call",
+            "Review a tool summary and safe-call playbook before executing a specific tool.",
+            [
+                new PromptArgumentDefinition("tool", "Published MCP tool name to prepare for execution.", true),
+                new PromptArgumentDefinition("task", "Optional task context for the planned call.", false)
             ])
     ];
 
@@ -608,6 +803,9 @@ public sealed class StreamableHttpTransport
             },
             "explore_domain" => BuildExploreDomainPrompt(arguments),
             "choose_tool_for_task" => BuildChooseToolPrompt(arguments),
+            "plan_task_workflow" => BuildPlanTaskWorkflowPrompt(arguments),
+            "compare_tools_for_task" => BuildCompareToolsPrompt(arguments),
+            "prepare_tool_call" => BuildPrepareToolCallPrompt(arguments),
             _ => null
         };
     }
@@ -650,16 +848,83 @@ public sealed class StreamableHttpTransport
         };
     }
 
-    private object[] BuildPromptMessages(string instruction, string resourceUri)
+    private object BuildPlanTaskWorkflowPrompt(JsonElement arguments)
     {
-        var resourceText = TryBuildResourceContent(resourceUri);
-        if (resourceText is null)
-        {
-            throw new InvalidOperationException($"Unknown resource: {resourceUri}");
-        }
+        var task = GetPromptArgument(arguments, "task", required: true)
+            ?? throw new InvalidOperationException("Missing required prompt argument: task");
+        var domain = GetPromptArgument(arguments, "domain", required: false);
+        var summaryResourceUri = string.IsNullOrWhiteSpace(domain)
+            ? CatalogOverviewUri
+            : $"{CatalogDomainUriPrefix}{Uri.EscapeDataString(domain)}";
 
-        return
-        [
+        EnsureResourceExists(summaryResourceUri);
+
+        var instruction = string.IsNullOrWhiteSpace(domain)
+            ? $"A user wants to: {task}\n\nUse the embedded discovery playbook and catalog overview to propose the best step-by-step exploration workflow. Explain when to use resources/read, catalog/search, prompts/get, and tools/call, and identify what information the client should gather before execution."
+            : $"A user wants to: {task}\n\nThe likely domain is '{domain}'. Use the embedded domain investigation playbook and domain summary to propose the best step-by-step workflow. Explain when to read resources, search inside the domain, compare tools, and what arguments should be gathered before execution.";
+
+        return new
+        {
+            description = "Plan a reusable discovery workflow for a task using the advanced discovery packs.",
+            messages = BuildPromptMessages(
+                instruction,
+                $"{DiscoveryPackUriPrefix}{(string.IsNullOrWhiteSpace(domain) ? "start-here" : "investigate-domain")}",
+                summaryResourceUri)
+        };
+    }
+
+    private object BuildCompareToolsPrompt(JsonElement arguments)
+    {
+        var task = GetPromptArgument(arguments, "task", required: true)
+            ?? throw new InvalidOperationException("Missing required prompt argument: task");
+        var domain = GetPromptArgument(arguments, "domain", required: false);
+        var summaryResourceUri = string.IsNullOrWhiteSpace(domain)
+            ? CatalogOverviewUri
+            : $"{CatalogDomainUriPrefix}{Uri.EscapeDataString(domain)}";
+
+        EnsureResourceExists(summaryResourceUri);
+
+        var instruction = string.IsNullOrWhiteSpace(domain)
+            ? $"A user wants to: {task}\n\nUse the embedded discovery pack and catalog summary to compare the 2-3 best candidate tools. Explain the trade-offs between them, when catalog/search should be used first, and what arguments or filters are likely needed before execution."
+            : $"A user wants to: {task}\n\nThe likely domain is '{domain}'. Use the embedded discovery pack and domain summary to compare the strongest candidate tools in that domain. Explain the trade-offs, expected arguments, and the safest next step before a tool call.";
+
+        return new
+        {
+            description = "Compare likely candidate tools for a task before choosing one to execute.",
+            messages = BuildPromptMessages(
+                instruction,
+                $"{DiscoveryPackUriPrefix}{(string.IsNullOrWhiteSpace(domain) ? "start-here" : "investigate-domain")}",
+                summaryResourceUri)
+        };
+    }
+
+    private object BuildPrepareToolCallPrompt(JsonElement arguments)
+    {
+        var toolName = GetPromptArgument(arguments, "tool", required: true)
+            ?? throw new InvalidOperationException("Missing required prompt argument: tool");
+        var task = GetPromptArgument(arguments, "task", required: false);
+        var toolResourceUri = $"{CatalogToolUriPrefix}{Uri.EscapeDataString(toolName)}";
+
+        EnsureResourceExists(toolResourceUri);
+
+        var instruction = string.IsNullOrWhiteSpace(task)
+            ? $"Review the embedded safe-call playbook and tool summary for '{toolName}'. Identify the required arguments, any likely ambiguities, any follow-up discovery steps still needed, and a safe execution plan before calling the tool."
+            : $"A user wants to: {task}\n\nReview the embedded safe-call playbook and tool summary for '{toolName}'. Identify the required arguments, any likely ambiguities, whether additional discovery is still needed, and a safe execution plan before calling the tool.";
+
+        return new
+        {
+            description = $"Prepare a safe execution plan for '{toolName}' using the advanced resource packs.",
+            messages = BuildPromptMessages(
+                instruction,
+                $"{DiscoveryPackUriPrefix}safe-tool-call",
+                toolResourceUri)
+        };
+    }
+
+    private object[] BuildPromptMessages(string instruction, params string[] resourceUris)
+    {
+        var messages = new List<object>
+        {
             new
             {
                 role = "user",
@@ -668,8 +933,18 @@ public sealed class StreamableHttpTransport
                     type = "text",
                     text = instruction
                 }
-            },
-            new
+            }
+        };
+
+        foreach (var resourceUri in resourceUris)
+        {
+            var resourceText = TryBuildResourceContent(resourceUri);
+            if (resourceText is null)
+            {
+                throw new InvalidOperationException($"Unknown resource: {resourceUri}");
+            }
+
+            messages.Add(new
             {
                 role = "user",
                 content = new
@@ -682,8 +957,10 @@ public sealed class StreamableHttpTransport
                         text = resourceText
                     }
                 }
-            }
-        ];
+            });
+        }
+
+        return messages.ToArray();
     }
 
     private void EnsureResourceExists(string resourceUri)
@@ -908,6 +1185,35 @@ public sealed class StreamableHttpTransport
         return property.TryGetInt32(out var intValue) ? intValue : 0;
     }
 
+    private static string[] GetSchemaStringArray(JsonElement schema, string propertyName)
+    {
+        if (!schema.TryGetProperty(propertyName, out var property) || property.ValueKind != JsonValueKind.Array)
+        {
+            return [];
+        }
+
+        return property.EnumerateArray()
+            .Where(item => item.ValueKind == JsonValueKind.String)
+            .Select(item => item.GetString())
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Cast<string>()
+            .ToArray();
+    }
+
+    private static string[] GetSchemaPropertyNames(JsonElement schema)
+    {
+        if (!schema.TryGetProperty("properties", out var property) || property.ValueKind != JsonValueKind.Object)
+        {
+            return [];
+        }
+
+        return property.EnumerateObject()
+            .Select(entry => entry.Name)
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .OrderBy(name => name, StringComparer.Ordinal)
+            .ToArray();
+    }
+
     private sealed record CatalogSearchRequest(
         string? Query,
         string? Domain,
@@ -960,8 +1266,23 @@ public sealed class StreamableHttpTransport
         string Description,
         bool Required);
 
+    private sealed record ResourcePackDefinition(
+        string Name,
+        string Title,
+        string Description);
+
+    private sealed record ResourcePackStep(
+        int Order,
+        string Action,
+        string Method,
+        string? Target,
+        string? Prompt,
+        string Purpose);
+
     private const string CatalogOverviewUri = "graphql-mcp://catalog/overview";
     private const string CatalogDomainUriPrefix = "graphql-mcp://catalog/domain/";
+    private const string CatalogToolUriPrefix = "graphql-mcp://catalog/tool/";
+    private const string DiscoveryPackUriPrefix = "graphql-mcp://packs/discovery/";
 
     private static async Task WriteJsonRpcResult(HttpContext context, object? id, string result)
     {

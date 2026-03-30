@@ -1,9 +1,9 @@
 # Discovery
 
-graphql-mcp exposes four lightweight discovery surfaces for MCP clients and exploration UIs:
+graphql-mcp exposes layered discovery surfaces for MCP clients and exploration UIs:
 
 - `tools/list` for the full published tool set
-- `resources/list` and `resources/read` for stable summary documents
+- `resources/list` and `resources/read` for stable summary, tool, and playbook documents
 - `catalog/list` for grouped domain summaries
 - `catalog/search` for ranked discovery matches with optional filters
 
@@ -11,6 +11,7 @@ For a runnable end-to-end sequence, see [Exploration Workflow](exploration.md) a
 [shared request assets](../examples/discovery-workflow).
 
 For reusable workflow templates layered on top of these discovery surfaces, see [Prompts](prompts.md).
+For the resource types behind those workflows, see [Resources](resources.md).
 
 ## Discovery Metadata
 
@@ -112,8 +113,8 @@ The repo now includes a reusable exploration pack for the sample servers:
 
 ## Next
 
-The next discovery step is deeper exploration support:
+The next discovery step is stronger semantic ranking and large-schema grouping:
 
 - stronger grouping for large schemas
-- discovery-oriented resources and prompts
 - richer semantic ranking beyond the current heuristic search
+- deeper domain inference for broad or ambiguous schemas

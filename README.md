@@ -37,11 +37,11 @@ Some frameworks are adding native MCP support (e.g., Hot Chocolate 16). graphql-
 
 ## Discovery
 
-graphql-mcp now ships lightweight discovery surfaces plus MCP prompt workflows:
+graphql-mcp now ships layered discovery surfaces plus MCP prompt workflows:
 
 - `tools/list` includes per-tool `domain`, `category`, `tags`, and `semanticHints` annotations
-- `prompts/list` and `prompts/get` expose reusable exploration and tool-selection templates
-- `resources/list` and `resources/read` expose stable overview and domain summary documents
+- `prompts/list` and `prompts/get` expose reusable exploration, planning, comparison, and safe-call templates
+- `resources/list` and `resources/read` expose stable overview, domain, tool, and discovery playbook documents
 - `catalog/list` returns grouped domain summaries, semantic hints, and tool metadata for exploration UIs
 - `catalog/search` returns ranked matches with optional query/domain/category/tag filters for discovery UIs
 
@@ -298,8 +298,8 @@ Restart Claude Desktop. Your GraphQL operations will appear as tools.
 - [x] Selection set field exclusion (nested types)
 - [x] OpenTelemetry instrumentation
 - [x] Spring GraphQL starter
-- [ ] MCP Resources (schema summary, type docs)
-- [ ] MCP Prompts (curated exploration templates)
+- [x] Advanced MCP resources (tool summaries, discovery playbooks)
+- [x] Advanced MCP prompts (workflow planning, candidate comparison, safe-call prep)
 - [x] AI-friendly discovery (domain grouping, semantic hints, grouped catalogs, and catalog search)
 - [x] Curated exploration workflow and reusable request assets for the sample apps
 - [ ] OAuth 2.1 metadata support

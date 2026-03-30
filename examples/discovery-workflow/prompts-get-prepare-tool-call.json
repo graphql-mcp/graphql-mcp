@@ -1,0 +1,12 @@
+{
+  "jsonrpc": "2.0",
+  "id": 25,
+  "method": "prompts/get",
+  "params": {
+    "name": "prepare_tool_call",
+    "arguments": {
+      "tool": "get_bookByTitle",
+      "task": "look up a sample book by title"
+    }
+  }
+}

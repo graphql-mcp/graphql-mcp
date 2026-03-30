@@ -1,6 +1,6 @@
 # Resources
 
-graphql-mcp now exposes lightweight MCP resources for discovery-oriented summaries.
+graphql-mcp now exposes MCP resources for discovery-oriented summaries, tool-specific execution context, and reusable playbooks.
 
 ## Supported Methods
 
@@ -41,6 +41,39 @@ This resource returns:
 - aggregated semantic hints
 - tool count
 - tool summaries for that domain
+
+### Tool Summary
+
+- URI pattern: `graphql-mcp://catalog/tool/<tool>`
+- MIME type: `application/json`
+
+This resource returns:
+
+- the published tool name
+- description, domain, category, and operation type
+- semantic hints and tags
+- required and optional arguments
+- argument mapping
+- input schema
+
+### Discovery Packs
+
+- URI pattern: `graphql-mcp://packs/discovery/<pack>`
+- MIME type: `application/json`
+
+These resources return reusable playbooks such as:
+
+- `start-here`
+- `investigate-domain`
+- `safe-tool-call`
+
+Each pack includes:
+
+- when to use it
+- recommended prompts
+- recommended resources
+- ordered workflow steps
+- optional execution checklist items
 
 ## Example Requests
 

@@ -22,4 +22,12 @@ They now cover:
 - `catalog/search`
 - `tools/call`
 
+The advanced prompt/resource pack assets include:
+
+- workflow-planning prompts
+- candidate-comparison prompts
+- safe-call preparation prompts
+- tool summary resources
+- reusable discovery playbook resources
+
 See [docs/exploration.md](../../docs/exploration.md) for the full walkthrough.

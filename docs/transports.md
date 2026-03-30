@@ -40,8 +40,8 @@ All messages use JSON-RPC 2.0:
 | `tools/list` | List all available tools |
 | `prompts/list` | List available prompt templates |
 | `prompts/get` | Fetch a prompt message sequence by name |
-| `resources/list` | List stable catalog and domain summary resources |
-| `resources/read` | Read a catalog overview or domain summary resource |
+| `resources/list` | List stable catalog, tool, and discovery pack resources |
+| `resources/read` | Read a catalog overview, domain summary, tool summary, or discovery pack |
 | `catalog/list` | Return grouped discovery metadata for published tools |
 | `capabilities/catalog` | Alias for `catalog/list` |
 | `catalog/search` | Return ranked discovery matches with optional filters |
@@ -201,6 +201,15 @@ For a full sample session that stitches together `initialize`, `tools/list`, `ca
 }
 ```
 
+Common resource URIs now include:
+
+- `graphql-mcp://catalog/overview`
+- `graphql-mcp://catalog/domain/<domain>`
+- `graphql-mcp://catalog/tool/<tool>`
+- `graphql-mcp://packs/discovery/start-here`
+- `graphql-mcp://packs/discovery/investigate-domain`
+- `graphql-mcp://packs/discovery/safe-tool-call`
+
 ### Prompts List Request
 
 ```json
@@ -226,6 +235,12 @@ For a full sample session that stitches together `initialize`, `tools/list`, `ca
   }
 }
 ```
+
+Advanced prompt names now include:
+
+- `plan_task_workflow`
+- `compare_tools_for_task`
+- `prepare_tool_call`
 
 ### Tool Call Response (success)
 

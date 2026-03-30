@@ -184,9 +184,12 @@ public class StreamableHttpTransportTests
 
         var json = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
         var prompts = json.RootElement.GetProperty("result").GetProperty("prompts");
-        prompts.GetArrayLength().Should().Be(3);
+        prompts.GetArrayLength().Should().Be(6);
         prompts[0].GetProperty("name").GetString().Should().Be("explore_catalog");
         prompts[1].GetProperty("arguments")[0].GetProperty("name").GetString().Should().Be("domain");
+        prompts.EnumerateArray()
+            .Select(prompt => prompt.GetProperty("name").GetString())
+            .Should().Contain(["plan_task_workflow", "compare_tools_for_task", "prepare_tool_call"]);
     }
 
     [Fact]
@@ -212,6 +215,30 @@ public class StreamableHttpTransportTests
         messages[1].GetProperty("content").GetProperty("type").GetString().Should().Be("resource");
         messages[1].GetProperty("content").GetProperty("resource").GetProperty("uri").GetString()
             .Should().Be("graphql-mcp://catalog/domain/order");
+    }
+
+    [Fact]
+    public async Task Prompts_get_prepare_tool_call_should_embed_pack_and_tool_resources()
+    {
+        using var host = await CreateTestHost();
+        using var client = host.GetTestClient();
+        var sessionId = await InitializeSessionAsync(client);
+
+        var response = await SendMcpRequest(
+            client,
+            "prompts/get",
+            "{\"name\":\"prepare_tool_call\",\"arguments\":{\"tool\":\"get_order\",\"task\":\"fetch an order by id\"}}",
+            sessionId);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var json = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+        var messages = json.RootElement.GetProperty("result").GetProperty("messages");
+        messages.GetArrayLength().Should().Be(3);
+        messages[1].GetProperty("content").GetProperty("resource").GetProperty("uri").GetString()
+            .Should().Be("graphql-mcp://packs/discovery/safe-tool-call");
+        messages[2].GetProperty("content").GetProperty("resource").GetProperty("uri").GetString()
+            .Should().Be("graphql-mcp://catalog/tool/get_order");
     }
 
     [Fact]
@@ -256,11 +283,15 @@ public class StreamableHttpTransportTests
         var json = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
         var resources = json.RootElement.GetProperty("result").GetProperty("resources");
 
-        resources.GetArrayLength().Should().Be(3);
+        resources.GetArrayLength().Should().Be(8);
         resources[0].GetProperty("uri").GetString().Should().Be("graphql-mcp://catalog/overview");
         resources.EnumerateArray()
             .Select(resource => resource.GetProperty("uri").GetString())
-            .Should().Contain("graphql-mcp://catalog/domain/order");
+            .Should().Contain([
+                "graphql-mcp://packs/discovery/start-here",
+                "graphql-mcp://catalog/domain/order",
+                "graphql-mcp://catalog/tool/get_order"
+            ]);
     }
 
     [Fact]
@@ -288,6 +319,57 @@ public class StreamableHttpTransportTests
         payload.RootElement.GetProperty("toolNames").EnumerateArray()
             .Select(element => element.GetString())
             .Should().Contain("get_order");
+    }
+
+    [Fact]
+    public async Task Resources_read_should_return_tool_summary()
+    {
+        using var host = await CreateTestHost();
+        using var client = host.GetTestClient();
+        var sessionId = await InitializeSessionAsync(client);
+
+        var response = await SendMcpRequest(
+            client,
+            "resources/read",
+            "{\"uri\":\"graphql-mcp://catalog/tool/get_order\"}",
+            sessionId);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var json = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+        var content = json.RootElement.GetProperty("result").GetProperty("contents")[0];
+
+        using var payload = JsonDocument.Parse(content.GetProperty("text").GetString()!);
+        payload.RootElement.GetProperty("kind").GetString().Should().Be("toolSummary");
+        payload.RootElement.GetProperty("name").GetString().Should().Be("get_order");
+        payload.RootElement.GetProperty("requiredArguments").EnumerateArray()
+            .Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Resources_read_should_return_discovery_pack()
+    {
+        using var host = await CreateTestHost();
+        using var client = host.GetTestClient();
+        var sessionId = await InitializeSessionAsync(client);
+
+        var response = await SendMcpRequest(
+            client,
+            "resources/read",
+            "{\"uri\":\"graphql-mcp://packs/discovery/start-here\"}",
+            sessionId);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var json = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+        var content = json.RootElement.GetProperty("result").GetProperty("contents")[0];
+
+        using var payload = JsonDocument.Parse(content.GetProperty("text").GetString()!);
+        payload.RootElement.GetProperty("kind").GetString().Should().Be("resourcePack");
+        payload.RootElement.GetProperty("pack").GetString().Should().Be("start-here");
+        payload.RootElement.GetProperty("recommendedPrompts").EnumerateArray()
+            .Select(element => element.GetString())
+            .Should().Contain("plan_task_workflow");
     }
 
     [Fact]
