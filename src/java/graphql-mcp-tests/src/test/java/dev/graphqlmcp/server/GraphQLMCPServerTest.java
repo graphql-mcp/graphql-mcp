@@ -33,6 +33,7 @@ class GraphQLMCPServerTest {
     assertEquals("0.1.0", init.serverInfo().version());
     assertTrue(init.capabilities().tools().listChanged());
     assertTrue(init.capabilities().catalog().list());
+    assertTrue(init.capabilities().catalog().search());
     assertEquals("domain", init.capabilities().catalog().grouping());
     assertEquals(1, server.listTools().size());
     assertTrue(server.hasTool("api_get_hello"));

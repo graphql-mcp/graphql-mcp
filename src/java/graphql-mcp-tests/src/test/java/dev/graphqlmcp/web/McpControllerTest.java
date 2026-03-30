@@ -32,6 +32,14 @@ class McpControllerTest {
     String sessionId = initializeResponse.getHeaders().getFirst("Mcp-Session-Id");
     assertNotNull(sessionId);
     assertFalse(sessionId.isBlank());
+    assertTrue(
+        initializeResponse
+            .getBody()
+            .path("result")
+            .path("capabilities")
+            .path("catalog")
+            .path("search")
+            .asBoolean());
 
     var missingSessionResponse =
         controller.handle(jsonRpcRequest("tools/list", null), null, new MockHttpServletRequest());
@@ -104,6 +112,54 @@ class McpControllerTest {
 
     assertEquals(HttpStatus.OK, response.getStatusCode());
     assertEquals(2, response.getBody().path("result").path("domainCount").asInt());
+  }
+
+  @Test
+  void catalog_search_json_rpc_returns_ranked_matches() {
+    McpController controller = createController();
+    String sessionId =
+        controller
+            .handle(jsonRpcRequest("initialize", null), null, new MockHttpServletRequest())
+            .getHeaders()
+            .getFirst("Mcp-Session-Id");
+
+    ObjectNode params = MAPPER.createObjectNode();
+    params.put("query", "book");
+    params.putArray("tags").add("query");
+    params.put("limit", 1);
+
+    var response =
+        controller.handle(
+            jsonRpcRequest("catalog/search", params), sessionId, new MockHttpServletRequest());
+
+    assertEquals(HttpStatus.OK, response.getStatusCode());
+    assertEquals(1, response.getBody().path("result").path("totalMatches").asInt());
+    assertEquals(
+        "api_get_book",
+        response.getBody().path("result").path("matches").get(0).path("name").asText());
+    assertTrue(response.getBody().path("result").path("matches").get(0).path("score").asInt() > 0);
+  }
+
+  @Test
+  void capabilities_search_alias_returns_matches() {
+    McpController controller = createController();
+    String sessionId =
+        controller
+            .handle(jsonRpcRequest("initialize", null), null, new MockHttpServletRequest())
+            .getHeaders()
+            .getFirst("Mcp-Session-Id");
+
+    ObjectNode params = MAPPER.createObjectNode();
+    params.put("query", "hello");
+
+    var response =
+        controller.handle(
+            jsonRpcRequest("capabilities/search", params), sessionId, new MockHttpServletRequest());
+
+    assertEquals(HttpStatus.OK, response.getStatusCode());
+    assertEquals(
+        "api_get_hello",
+        response.getBody().path("result").path("matches").get(0).path("name").asText());
   }
 
   @Test

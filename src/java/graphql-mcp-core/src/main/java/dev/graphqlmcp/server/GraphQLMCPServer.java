@@ -19,7 +19,7 @@ public class GraphQLMCPServer {
   public InitializeResult initialize() {
     return new InitializeResult(
         "2025-06-18",
-        new Capabilities(new ToolCapabilities(true), new CatalogCapabilities(true, "domain")),
+        new Capabilities(new ToolCapabilities(true), new CatalogCapabilities(true, true, "domain")),
         new ServerInfo("graphql-mcp", "0.1.0"));
   }
 
@@ -42,7 +42,7 @@ public class GraphQLMCPServer {
 
   public record ToolCapabilities(boolean listChanged) {}
 
-  public record CatalogCapabilities(boolean list, String grouping) {}
+  public record CatalogCapabilities(boolean list, boolean search, String grouping) {}
 
   public record ServerInfo(String name, String version) {}
 }

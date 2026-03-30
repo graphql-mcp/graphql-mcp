@@ -99,6 +99,10 @@ public class StreamableHttpTransportTests
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         response.Headers.Contains("Mcp-Session-Id").Should().BeTrue();
         response.Headers.GetValues("Mcp-Session-Id").First().Should().NotBeNullOrEmpty();
+
+        var json = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+        json.RootElement.GetProperty("result").GetProperty("capabilities").GetProperty("catalog")
+            .GetProperty("search").GetBoolean().Should().BeTrue();
     }
 
     [Fact]
@@ -214,6 +218,36 @@ public class StreamableHttpTransportTests
     }
 
     [Fact]
+    public async Task Catalog_search_should_return_ranked_matches_and_filters()
+    {
+        using var host = await CreateTestHost();
+        using var client = host.GetTestClient();
+        var sessionId = await InitializeSessionAsync(client);
+
+        var searchParams = JsonSerializer.Serialize(new
+        {
+            query = "order",
+            tags = new[] { "query" },
+            limit = 1
+        });
+
+        var response = await SendMcpRequest(client, "catalog/search", searchParams, sessionId);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var json = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+        var result = json.RootElement.GetProperty("result");
+
+        result.GetProperty("totalMatches").GetInt32().Should().Be(1);
+        result.GetProperty("domainCount").GetInt32().Should().Be(1);
+        result.GetProperty("matches")[0].GetProperty("name").GetString().Should().Be("get_order");
+        result.GetProperty("matches")[0].GetProperty("score").GetInt32().Should().BeGreaterThan(0);
+        result.GetProperty("filters").GetProperty("tags").EnumerateArray()
+            .Select(element => element.GetString())
+            .Should().Contain("query");
+    }
+
+    [Fact]
     public async Task Capabilities_catalog_should_alias_catalog_list()
     {
         using var host = await CreateTestHost();
@@ -226,6 +260,23 @@ public class StreamableHttpTransportTests
 
         var json = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
         json.RootElement.GetProperty("result").GetProperty("domainCount").GetInt32().Should().Be(2);
+    }
+
+    [Fact]
+    public async Task Capabilities_search_should_alias_catalog_search()
+    {
+        using var host = await CreateTestHost();
+        using var client = host.GetTestClient();
+        var sessionId = await InitializeSessionAsync(client);
+
+        var searchParams = JsonSerializer.Serialize(new { query = "user" });
+        var response = await SendMcpRequest(client, "capabilities/search", searchParams, sessionId);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var json = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+        json.RootElement.GetProperty("result").GetProperty("matches")[0].GetProperty("name").GetString()
+            .Should().Be("get_user");
     }
 
     [Fact]
@@ -257,9 +308,11 @@ public class StreamableHttpTransportTests
 
         var json = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
         var serverInfo = json.RootElement.GetProperty("result").GetProperty("serverInfo");
+        var catalogCapabilities = json.RootElement.GetProperty("result").GetProperty("capabilities").GetProperty("catalog");
 
         serverInfo.GetProperty("name").GetString().Should().Be("graphql-mcp");
         serverInfo.GetProperty("version").GetString().Should().NotBeNullOrEmpty();
+        catalogCapabilities.GetProperty("search").GetBoolean().Should().BeTrue();
     }
 
     [Fact]

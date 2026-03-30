@@ -40,6 +40,8 @@ All messages use JSON-RPC 2.0:
 | `tools/list` | List all available tools |
 | `catalog/list` | Return grouped discovery metadata for published tools |
 | `capabilities/catalog` | Alias for `catalog/list` |
+| `catalog/search` | Return ranked discovery matches with optional filters |
+| `capabilities/search` | Alias for `catalog/search` |
 | `tools/call` | Execute a tool |
 | `ping` | Health check |
 
@@ -115,6 +117,49 @@ All messages use JSON-RPC 2.0:
 {
   "intent": "retrieve",
   "keywords": ["book", "id", "query"]
+}
+```
+
+### Catalog Search Request
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 4,
+  "method": "catalog/search",
+  "params": {
+    "query": "book",
+    "tags": ["query"],
+    "limit": 5
+  }
+}
+```
+
+### Catalog Search Response
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 4,
+  "result": {
+    "query": "book",
+    "filters": {
+      "domain": null,
+      "category": null,
+      "operationType": null,
+      "tags": ["query"]
+    },
+    "totalMatches": 1,
+    "domainCount": 1,
+    "matches": [
+      {
+        "name": "get_book",
+        "domain": "book",
+        "tags": ["book", "query"],
+        "score": 55
+      }
+    ]
+  }
 }
 ```
 

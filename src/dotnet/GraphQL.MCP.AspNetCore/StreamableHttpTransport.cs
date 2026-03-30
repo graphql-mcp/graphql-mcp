@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Text;
 using System.Text.Json;
 using GraphQL.MCP.Abstractions;
 using GraphQL.MCP.Core.Execution;
@@ -104,6 +105,10 @@ public sealed class StreamableHttpTransport
                 case "capabilities/catalog":
                     await HandleCatalog(context, id);
                     break;
+                case "catalog/search":
+                case "capabilities/search":
+                    await HandleCatalogSearch(context, doc.RootElement, id);
+                    break;
                 case "tools/call":
                     await HandleToolsCall(context, doc.RootElement, id);
                     break;
@@ -132,7 +137,7 @@ public sealed class StreamableHttpTransport
             capabilities = new
             {
                 tools = new { listChanged = true },
-                catalog = new { list = true }
+                catalog = new { list = true, search = true }
             },
             serverInfo = new
             {
@@ -238,6 +243,74 @@ public sealed class StreamableHttpTransport
         await WriteJsonRpcResult(context, id, JsonSerializer.Serialize(result, JsonOptions));
     }
 
+    private async Task HandleCatalogSearch(HttpContext context, JsonElement root, object? id)
+    {
+        var search = ParseCatalogSearchRequest(root);
+        var allMatches = _toolRegistry.Tools
+            .Select(tool => new { Tool = tool, Score = ScoreTool(tool, search) })
+            .Where(entry => entry.Score > 0)
+            .OrderByDescending(entry => entry.Score)
+            .ThenBy(entry => entry.Tool.Name, StringComparer.Ordinal)
+            .ToArray();
+
+        var matches = allMatches
+            .Take(search.Limit)
+            .Select(entry => new
+            {
+                name = entry.Tool.Name,
+                description = entry.Tool.Description,
+                domain = entry.Tool.Domain,
+                category = entry.Tool.Category,
+                operationType = entry.Tool.OperationType.ToString().ToLowerInvariant(),
+                fieldName = entry.Tool.GraphQLFieldName,
+                tags = entry.Tool.Tags,
+                semanticHints = entry.Tool.SemanticHints,
+                score = entry.Score
+            })
+            .ToArray();
+
+        var domains = allMatches
+            .Select(entry => new
+            {
+                name = entry.Tool.Name,
+                domain = entry.Tool.Domain,
+                tags = entry.Tool.Tags
+            })
+            .GroupBy(match => match.domain, StringComparer.OrdinalIgnoreCase)
+            .Select(group => new
+            {
+                domain = group.Key,
+                toolCount = group.Count(),
+                toolNames = group.Select(match => match.name).OrderBy(name => name, StringComparer.Ordinal).ToArray(),
+                tags = group
+                    .SelectMany(match => match.tags)
+                    .Where(tag => !string.IsNullOrWhiteSpace(tag))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(tag => tag, StringComparer.Ordinal)
+                    .ToArray()
+            })
+            .OrderBy(group => group.domain, StringComparer.Ordinal)
+            .ToArray();
+
+        var result = new
+        {
+            query = search.Query,
+            filters = new
+            {
+                domain = search.Domain,
+                category = search.Category,
+                operationType = search.OperationType,
+                tags = search.Tags
+            },
+            totalMatches = allMatches.Length,
+            domainCount = domains.Length,
+            matches,
+            domains
+        };
+
+        await WriteJsonRpcResult(context, id, JsonSerializer.Serialize(result, JsonOptions));
+    }
+
     private async Task HandleToolsCall(HttpContext context, JsonElement root, object? id)
     {
         if (!root.TryGetProperty("params", out var paramsElement))
@@ -309,7 +382,211 @@ public sealed class StreamableHttpTransport
     }
 
     private static bool RequiresSession(string? method) =>
-        method is "tools/list" or "catalog/list" or "capabilities/catalog" or "tools/call";
+        method is "tools/list" or "catalog/list" or "capabilities/catalog" or "catalog/search" or "capabilities/search" or "tools/call";
+
+    private static CatalogSearchRequest ParseCatalogSearchRequest(JsonElement root)
+    {
+        if (!root.TryGetProperty("params", out var paramsElement) || paramsElement.ValueKind != JsonValueKind.Object)
+        {
+            return new CatalogSearchRequest(null, null, null, null, [], 20);
+        }
+
+        var query = GetOptionalString(paramsElement, "query");
+        var domain = GetOptionalString(paramsElement, "domain");
+        var category = GetOptionalString(paramsElement, "category");
+        var operationType = GetOptionalString(paramsElement, "operationType");
+        var tags = GetOptionalStringArray(paramsElement, "tags");
+        var limit = GetOptionalInt(paramsElement, "limit");
+        if (limit <= 0)
+        {
+            limit = 20;
+        }
+
+        return new CatalogSearchRequest(query, domain, category, operationType, tags, Math.Min(limit, 100));
+    }
+
+    private static int ScoreTool(McpToolDescriptor tool, CatalogSearchRequest search)
+    {
+        if (!MatchesFilter(tool.Domain, search.Domain) ||
+            !MatchesFilter(tool.Category, search.Category) ||
+            !MatchesFilter(tool.OperationType.ToString(), search.OperationType) ||
+            !MatchesTags(tool.Tags, search.Tags))
+        {
+            return 0;
+        }
+
+        var queryTokens = TokenizeSearchText(search.Query);
+        if (queryTokens.Count == 0)
+        {
+            return 1;
+        }
+
+        var searchable = BuildSearchableText(tool);
+        var exactValues = BuildExactMatchSet(tool);
+        var total = 0;
+
+        foreach (var token in queryTokens)
+        {
+            var tokenScore = 0;
+            if (exactValues.Contains(token))
+            {
+                tokenScore = 40;
+            }
+            else if (searchable.Any(value => value.Contains(token, StringComparison.OrdinalIgnoreCase)))
+            {
+                tokenScore = 15;
+            }
+
+            if (tokenScore == 0)
+            {
+                return 0;
+            }
+
+            total += tokenScore;
+        }
+
+        return total;
+    }
+
+    private static HashSet<string> BuildExactMatchSet(McpToolDescriptor tool)
+    {
+        var values = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            NormalizeSearchValue(tool.Name),
+            NormalizeSearchValue(tool.GraphQLFieldName),
+            NormalizeSearchValue(tool.Domain),
+            NormalizeSearchValue(tool.Category),
+            NormalizeSearchValue(tool.OperationType.ToString())
+        };
+
+        foreach (var tag in tool.Tags)
+        {
+            values.Add(NormalizeSearchValue(tag));
+        }
+
+        foreach (var keyword in tool.SemanticHints.Keywords)
+        {
+            values.Add(NormalizeSearchValue(keyword));
+        }
+
+        return values;
+    }
+
+    private static string[] BuildSearchableText(McpToolDescriptor tool) =>
+    [
+        tool.Name,
+        tool.GraphQLFieldName,
+        tool.Description ?? "",
+        tool.Domain,
+        tool.Category ?? "",
+        tool.SemanticHints.Intent,
+        string.Join(" ", tool.Tags),
+        string.Join(" ", tool.SemanticHints.Keywords)
+    ];
+
+    private static bool MatchesFilter(string? actual, string? expected) =>
+        string.IsNullOrWhiteSpace(expected) ||
+        string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase);
+
+    private static bool MatchesTags(IReadOnlyList<string> actualTags, IReadOnlyList<string> requiredTags)
+    {
+        if (requiredTags.Count == 0)
+        {
+            return true;
+        }
+
+        return requiredTags.All(required =>
+            actualTags.Any(actual => string.Equals(actual, required, StringComparison.OrdinalIgnoreCase)));
+    }
+
+    private static List<string> TokenizeSearchText(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return [];
+        }
+
+        var tokens = new List<string>();
+        var current = new StringBuilder();
+        foreach (var ch in value)
+        {
+            if (char.IsLetterOrDigit(ch))
+            {
+                current.Append(char.ToLowerInvariant(ch));
+            }
+            else if (current.Length > 0)
+            {
+                tokens.Add(current.ToString());
+                current.Clear();
+            }
+        }
+
+        if (current.Length > 0)
+        {
+            tokens.Add(current.ToString());
+        }
+
+        return tokens;
+    }
+
+    private static string NormalizeSearchValue(string? value) =>
+        string.IsNullOrWhiteSpace(value)
+            ? ""
+            : string.Concat(value.Where(char.IsLetterOrDigit)).ToLowerInvariant();
+
+    private static string? GetOptionalString(JsonElement element, string propertyName)
+    {
+        if (!element.TryGetProperty(propertyName, out var property) || property.ValueKind != JsonValueKind.String)
+        {
+            return null;
+        }
+
+        return property.GetString();
+    }
+
+    private static IReadOnlyList<string> GetOptionalStringArray(JsonElement element, string propertyName)
+    {
+        if (!element.TryGetProperty(propertyName, out var property))
+        {
+            return [];
+        }
+
+        if (property.ValueKind == JsonValueKind.String)
+        {
+            var single = property.GetString();
+            return string.IsNullOrWhiteSpace(single) ? [] : [single];
+        }
+
+        if (property.ValueKind != JsonValueKind.Array)
+        {
+            return [];
+        }
+
+        return property.EnumerateArray()
+            .Where(item => item.ValueKind == JsonValueKind.String)
+            .Select(item => item.GetString())
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Cast<string>()
+            .ToArray();
+    }
+
+    private static int GetOptionalInt(JsonElement element, string propertyName)
+    {
+        if (!element.TryGetProperty(propertyName, out var property) || property.ValueKind != JsonValueKind.Number)
+        {
+            return 0;
+        }
+
+        return property.TryGetInt32(out var intValue) ? intValue : 0;
+    }
+
+    private sealed record CatalogSearchRequest(
+        string? Query,
+        string? Domain,
+        string? Category,
+        string? OperationType,
+        IReadOnlyList<string> Tags,
+        int Limit);
 
     private static async Task WriteJsonRpcResult(HttpContext context, object? id, string result)
     {

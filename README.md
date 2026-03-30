@@ -41,6 +41,7 @@ graphql-mcp now ships two lightweight discovery surfaces:
 
 - `tools/list` includes per-tool `domain`, `category`, `tags`, and `semanticHints` annotations
 - `catalog/list` returns grouped domain summaries, semantic hints, and tool metadata for exploration UIs
+- `catalog/search` returns ranked matches with optional query/domain/category/tag filters for discovery UIs
 
 ## Supported AI Clients
 
@@ -265,6 +266,7 @@ Restart Claude Desktop. Your GraphQL operations will appear as tools.
 | Configuration (.NET) | [docs/dotnet/configuration.md](docs/dotnet/configuration.md) |
 | Getting Started (Java) | [docs/java/getting-started.md](docs/java/getting-started.md) |
 | Configuration (Java) | [docs/java/configuration.md](docs/java/configuration.md) |
+| Discovery | [docs/discovery.md](docs/discovery.md) |
 | Policies | [docs/policies.md](docs/policies.md) |
 | Adapters | [docs/adapters.md](docs/adapters.md) |
 | Roadmap | [docs/roadmap.md](docs/roadmap.md) |

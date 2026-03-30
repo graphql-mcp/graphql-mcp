@@ -71,6 +71,8 @@ public class McpController {
     return switch (method) {
       case "tools/list" -> handleToolsList(id);
       case "catalog/list", "capabilities/catalog" -> handleCatalogRpc(id);
+      case "catalog/search", "capabilities/search" ->
+          handleCatalogSearchRpc(id, body.get("params"));
       case "tools/call" -> handleToolsCall(id, body.get("params"), request);
       case "ping" -> handlePing(id);
       default -> ResponseEntity.ok(jsonRpcError(body, -32601, "Method not found: " + method));
@@ -113,6 +115,7 @@ public class McpController {
     capabilities.set("tools", toolsCap);
     ObjectNode catalogCap = MAPPER.createObjectNode();
     catalogCap.put("list", initResult.capabilities().catalog().list());
+    catalogCap.put("search", initResult.capabilities().catalog().search());
     catalogCap.put("grouping", initResult.capabilities().catalog().grouping());
     capabilities.set("catalog", catalogCap);
     result.set("capabilities", capabilities);
@@ -197,6 +200,11 @@ public class McpController {
     return ResponseEntity.ok(jsonRpcResult(id, buildCatalogResult()));
   }
 
+  private ResponseEntity<ObjectNode> handleCatalogSearchRpc(JsonNode id, JsonNode params) {
+    return ResponseEntity.ok(
+        jsonRpcResult(id, buildCatalogSearchResult(parseSearchRequest(params))));
+  }
+
   private ObjectNode buildCatalogResult() {
     GraphQLMCPServer.InitializeResult initResult = server.initialize();
 
@@ -212,6 +220,7 @@ public class McpController {
     capabilities.set("tools", toolsCap);
     ObjectNode catalogCap = MAPPER.createObjectNode();
     catalogCap.put("list", initResult.capabilities().catalog().list());
+    catalogCap.put("search", initResult.capabilities().catalog().search());
     catalogCap.put("grouping", initResult.capabilities().catalog().grouping());
     capabilities.set("catalog", catalogCap);
     result.set("capabilities", capabilities);
@@ -294,6 +303,290 @@ public class McpController {
     return result;
   }
 
+  private ObjectNode buildCatalogSearchResult(CatalogSearchRequest request) {
+    List<SearchMatch> allMatches =
+        tools.stream()
+            .map(tool -> new SearchMatch(tool, scoreTool(tool, request)))
+            .filter(match -> match.score() > 0)
+            .sorted(
+                Comparator.comparingInt(SearchMatch::score)
+                    .reversed()
+                    .thenComparing(match -> match.tool().name()))
+            .toList();
+
+    List<SearchMatch> matches = allMatches.stream().limit(request.limit()).toList();
+
+    ObjectNode result = MAPPER.createObjectNode();
+    if (request.query() != null) {
+      result.put("query", request.query());
+    } else {
+      result.putNull("query");
+    }
+
+    ObjectNode filters = MAPPER.createObjectNode();
+    if (request.domain() != null) {
+      filters.put("domain", request.domain());
+    } else {
+      filters.putNull("domain");
+    }
+    if (request.category() != null) {
+      filters.put("category", request.category());
+    } else {
+      filters.putNull("category");
+    }
+    if (request.operationType() != null) {
+      filters.put("operationType", request.operationType());
+    } else {
+      filters.putNull("operationType");
+    }
+    filters.set("tags", MAPPER.valueToTree(request.tags()));
+    result.set("filters", filters);
+
+    ArrayNode matchesNode = MAPPER.createArrayNode();
+    for (SearchMatch match : matches) {
+      ToolDescriptor tool = match.tool();
+
+      ObjectNode matchNode = MAPPER.createObjectNode();
+      matchNode.put("name", tool.name());
+      matchNode.put("description", tool.description());
+      matchNode.put("domain", tool.domainGroup());
+      matchNode.put("category", tool.category());
+      matchNode.put("operationType", tool.operationType().name().toLowerCase(Locale.ROOT));
+      matchNode.put("fieldName", tool.graphQLFieldName());
+      matchNode.set("tags", MAPPER.valueToTree(tool.tags()));
+      if (tool.semanticHints() != null) {
+        matchNode.set("semanticHints", MAPPER.valueToTree(tool.semanticHints()));
+      }
+      matchNode.put("score", match.score());
+      matchesNode.add(matchNode);
+    }
+
+    Map<String, List<ToolDescriptor>> groupedMatches = new TreeMap<>();
+    for (SearchMatch match : allMatches) {
+      ToolDescriptor tool = match.tool();
+      groupedMatches.computeIfAbsent(tool.domainGroup(), ignored -> new ArrayList<>()).add(tool);
+    }
+
+    ArrayNode domains = MAPPER.createArrayNode();
+    for (Map.Entry<String, List<ToolDescriptor>> entry : groupedMatches.entrySet()) {
+      ObjectNode domainNode = MAPPER.createObjectNode();
+      domainNode.put("domain", entry.getKey());
+      domainNode.put("toolCount", entry.getValue().size());
+
+      ArrayNode toolNames = MAPPER.createArrayNode();
+      entry.getValue().stream().map(ToolDescriptor::name).sorted().forEach(toolNames::add);
+      domainNode.set("toolNames", toolNames);
+
+      ArrayNode tags = MAPPER.createArrayNode();
+      entry.getValue().stream()
+          .flatMap(tool -> tool.tags().stream())
+          .filter(Objects::nonNull)
+          .distinct()
+          .sorted()
+          .forEach(tags::add);
+      domainNode.set("tags", tags);
+      domains.add(domainNode);
+    }
+
+    result.put("totalMatches", allMatches.size());
+    result.put("domainCount", groupedMatches.size());
+    result.set("matches", matchesNode);
+    result.set("domains", domains);
+    return result;
+  }
+
+  private CatalogSearchRequest parseSearchRequest(JsonNode params) {
+    if (params == null || !params.isObject()) {
+      return new CatalogSearchRequest(null, null, null, null, List.of(), 20);
+    }
+
+    String query = optionalText(params, "query");
+    String domain = optionalText(params, "domain");
+    String category = optionalText(params, "category");
+    String operationType = optionalText(params, "operationType");
+    List<String> tags = optionalTextArray(params.get("tags"));
+    int limit = params.has("limit") ? params.path("limit").asInt(20) : 20;
+    if (limit <= 0) {
+      limit = 20;
+    }
+
+    return new CatalogSearchRequest(
+        query, domain, category, operationType, tags, Math.min(limit, 100));
+  }
+
+  private int scoreTool(ToolDescriptor tool, CatalogSearchRequest request) {
+    if (!matchesFilter(tool.domainGroup(), request.domain())
+        || !matchesFilter(tool.category(), request.category())
+        || !matchesFilter(tool.operationType().name(), request.operationType())
+        || !matchesTags(tool.tags(), request.tags())) {
+      return 0;
+    }
+
+    List<String> tokens = tokenizeSearchText(request.query());
+    if (tokens.isEmpty()) {
+      return 1;
+    }
+
+    Set<String> exactValues = buildExactMatchSet(tool);
+    List<String> searchableValues = buildSearchableValues(tool);
+    int total = 0;
+    for (String token : tokens) {
+      int tokenScore = 0;
+      if (exactValues.contains(token)) {
+        tokenScore = 40;
+      } else {
+        for (String value : searchableValues) {
+          if (value.contains(token)) {
+            tokenScore = 15;
+            break;
+          }
+        }
+      }
+
+      if (tokenScore == 0) {
+        return 0;
+      }
+
+      total += tokenScore;
+    }
+
+    return total;
+  }
+
+  private Set<String> buildExactMatchSet(ToolDescriptor tool) {
+    Set<String> values = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+    values.add(normalizeSearchValue(tool.name()));
+    values.add(normalizeSearchValue(tool.graphQLFieldName()));
+    values.add(normalizeSearchValue(tool.domainGroup()));
+    values.add(normalizeSearchValue(tool.category()));
+    values.add(normalizeSearchValue(tool.operationType().name()));
+
+    for (String tag : tool.tags()) {
+      values.add(normalizeSearchValue(tag));
+    }
+
+    if (tool.semanticHints() != null) {
+      for (String keyword : tool.semanticHints().keywords()) {
+        values.add(normalizeSearchValue(keyword));
+      }
+    }
+
+    return values;
+  }
+
+  private List<String> buildSearchableValues(ToolDescriptor tool) {
+    List<String> values = new ArrayList<>();
+    values.add(tool.name().toLowerCase(Locale.ROOT));
+    values.add(tool.graphQLFieldName().toLowerCase(Locale.ROOT));
+    values.add(tool.description() == null ? "" : tool.description().toLowerCase(Locale.ROOT));
+    values.add(tool.domainGroup().toLowerCase(Locale.ROOT));
+    values.add(tool.category() == null ? "" : tool.category().toLowerCase(Locale.ROOT));
+    values.add(String.join(" ", tool.tags()).toLowerCase(Locale.ROOT));
+    if (tool.semanticHints() != null) {
+      values.add(
+          tool.semanticHints().intent() == null
+              ? ""
+              : tool.semanticHints().intent().toLowerCase(Locale.ROOT));
+      values.add(String.join(" ", tool.semanticHints().keywords()).toLowerCase(Locale.ROOT));
+    }
+    return values;
+  }
+
+  private boolean matchesFilter(String actual, String expected) {
+    return expected == null || expected.isBlank() || actual.equalsIgnoreCase(expected);
+  }
+
+  private boolean matchesTags(List<String> actualTags, List<String> requiredTags) {
+    if (requiredTags.isEmpty()) {
+      return true;
+    }
+
+    for (String required : requiredTags) {
+      boolean found =
+          actualTags.stream()
+              .anyMatch(actual -> actual != null && actual.equalsIgnoreCase(required));
+      if (!found) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  private List<String> tokenizeSearchText(String value) {
+    if (value == null || value.isBlank()) {
+      return List.of();
+    }
+
+    List<String> tokens = new ArrayList<>();
+    StringBuilder current = new StringBuilder();
+    for (int index = 0; index < value.length(); index++) {
+      char c = value.charAt(index);
+      if (Character.isLetterOrDigit(c)) {
+        current.append(Character.toLowerCase(c));
+      } else if (!current.isEmpty()) {
+        tokens.add(current.toString());
+        current.setLength(0);
+      }
+    }
+
+    if (!current.isEmpty()) {
+      tokens.add(current.toString());
+    }
+
+    return tokens;
+  }
+
+  private String normalizeSearchValue(String value) {
+    if (value == null || value.isBlank()) {
+      return "";
+    }
+
+    StringBuilder builder = new StringBuilder();
+    for (int index = 0; index < value.length(); index++) {
+      char c = value.charAt(index);
+      if (Character.isLetterOrDigit(c)) {
+        builder.append(Character.toLowerCase(c));
+      }
+    }
+    return builder.toString();
+  }
+
+  private String optionalText(JsonNode node, String propertyName) {
+    if (node == null || !node.has(propertyName) || node.path(propertyName).isNull()) {
+      return null;
+    }
+
+    String value = node.path(propertyName).asText(null);
+    return value == null || value.isBlank() ? null : value;
+  }
+
+  private List<String> optionalTextArray(JsonNode node) {
+    if (node == null || node.isNull()) {
+      return List.of();
+    }
+
+    if (node.isTextual()) {
+      String value = node.asText();
+      return value == null || value.isBlank() ? List.of() : List.of(value);
+    }
+
+    if (!node.isArray()) {
+      return List.of();
+    }
+
+    List<String> values = new ArrayList<>();
+    for (JsonNode item : node) {
+      if (item.isTextual()) {
+        String value = item.asText();
+        if (value != null && !value.isBlank()) {
+          values.add(value);
+        }
+      }
+    }
+    return List.copyOf(values);
+  }
+
   private ObjectNode jsonRpcResult(JsonNode id, ObjectNode result) {
     ObjectNode response = MAPPER.createObjectNode();
     response.put("jsonrpc", "2.0");
@@ -312,4 +605,14 @@ public class McpController {
     response.set("error", error);
     return response;
   }
+
+  private record CatalogSearchRequest(
+      String query,
+      String domain,
+      String category,
+      String operationType,
+      List<String> tags,
+      int limit) {}
+
+  private record SearchMatch(ToolDescriptor tool, int score) {}
 }
