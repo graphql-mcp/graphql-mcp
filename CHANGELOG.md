@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - semantic discovery hints on published tools via `semanticHints.intent` and `semanticHints.keywords`
 - stronger discovery heuristics for domain inference, singularization, and structural suffix stripping
 - searchable capability catalogs via `catalog/search` / `capabilities/search` with ranked matches and filters
+- curated exploration walkthrough doc and reusable JSON/HTTP request assets for the sample apps
 - dedicated docs for policies, adapters, and roadmap
 ### Fixed
 - ISchema DI resolution crash - Hot Chocolate adapter now uses `IRequestExecutorResolver` instead of `ISchema` (not registered in HC DI container)

@@ -58,12 +58,13 @@ All messages use JSON-RPC 2.0:
         "listChanged": true
       },
       "catalog": {
-        "list": true
+        "list": true,
+        "search": true
       }
     },
     "serverInfo": {
       "name": "graphql-mcp",
-      "version": "0.1.0-alpha.3"
+      "version": "0.1.0-alpha"
     }
   }
 }
@@ -119,6 +120,9 @@ All messages use JSON-RPC 2.0:
   "keywords": ["book", "id", "query"]
 }
 ```
+
+For a full sample session that stitches together `initialize`, `tools/list`, `catalog/list`,
+`catalog/search`, and `tools/call`, see [Exploration Workflow](exploration.md).
 
 ### Catalog Search Request
 

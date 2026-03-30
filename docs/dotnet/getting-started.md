@@ -22,7 +22,7 @@ builder.Services
     .AddGraphQLServer()
     .AddQueryType<Query>();
 
-// Add MCP — one line
+// Add MCP - one line
 builder.Services.AddHotChocolateMcp();
 
 var app = builder.Build();
@@ -51,11 +51,13 @@ That's it. Your GraphQL API now speaks MCP.
 ## Test It
 
 Start your app:
+
 ```bash
 dotnet run
 ```
 
 Test the MCP endpoint:
+
 ```bash
 # Initialize and capture the Mcp-Session-Id response header
 curl -X POST http://localhost:5000/mcp \
@@ -109,7 +111,8 @@ Add to your workspace `.vscode/mcp.json`:
 
 ## Next Steps
 
-- [Configuration](configuration.md) — full options reference
-- [Security](../security.md) — safety controls and auth
-- [Mapping](../mapping.md) — how operations become tools
-- [Observability](../observability.md) — logging and tracing
+- [Exploration Workflow](../exploration.md) - discovery walkthrough for the sample apps
+- [Configuration](configuration.md) - full options reference
+- [Security](../security.md) - safety controls and auth
+- [Mapping](../mapping.md) - how operations become tools
+- [Observability](../observability.md) - logging and tracing

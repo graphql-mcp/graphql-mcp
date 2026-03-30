@@ -9,6 +9,7 @@ This roadmap tracks the cross-framework direction of graphql-mcp.
 - graphql-dotnet adapter
 - Streamable HTTP transport
 - grouped discovery metadata, semantic hints, lightweight capability catalogs, and searchable catalog queries
+- curated exploration walkthroughs and reusable request assets for the sample apps
 - Java Spring GraphQL alpha-preview track
 - CI/CD for NuGet and Maven Central
 - docs and example apps for .NET and Java
@@ -17,12 +18,11 @@ This roadmap tracks the cross-framework direction of graphql-mcp.
 
 - launch polish across README, release notes, and examples
 - stronger Java hardening from alpha-preview to broader alpha confidence
-- richer discovery examples for exploration UIs
 
 ## Next Differentiators
 
 - stronger domain inference and grouping heuristics for large schemas
-- curated exploration resources and richer discovery examples
+- discovery-oriented resources and prompts on top of the current walkthroughs
 - more advanced policy controls around complexity and curation
 
 ## Later

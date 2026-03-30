@@ -1,0 +1,10 @@
+{
+  "jsonrpc": "2.0",
+  "id": 4,
+  "method": "catalog/search",
+  "params": {
+    "query": "book",
+    "tags": ["query"],
+    "limit": 5
+  }
+}

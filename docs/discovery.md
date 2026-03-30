@@ -6,6 +6,9 @@ graphql-mcp exposes three lightweight discovery surfaces for MCP clients and exp
 - `catalog/list` for grouped domain summaries
 - `catalog/search` for ranked discovery matches with optional filters
 
+For a runnable end-to-end sequence, see [Exploration Workflow](exploration.md) and the
+[shared request assets](../examples/discovery-workflow).
+
 ## Discovery Metadata
 
 Each published tool can carry:
@@ -96,10 +99,18 @@ Typical result shape:
 - Scores are heuristic and meant for ordering, not for authorization or policy decisions
 - Search only covers published tools after policy filtering
 
+## Current Exploration Assets
+
+The repo now includes a reusable exploration pack for the sample servers:
+
+- [docs/exploration.md](exploration.md)
+- [examples/discovery-workflow/graphql-mcp.http](../examples/discovery-workflow/graphql-mcp.http)
+- raw JSON-RPC request bodies under [examples/discovery-workflow](../examples/discovery-workflow)
+
 ## Next
 
-The next discovery step is richer exploration support:
+The next discovery step is deeper exploration support:
 
-- curated exploration examples
 - stronger grouping for large schemas
 - discovery-oriented resources and prompts
+- richer semantic ranking beyond the current heuristic search

@@ -37,11 +37,14 @@ Some frameworks are adding native MCP support (e.g., Hot Chocolate 16). graphql-
 
 ## Discovery
 
-graphql-mcp now ships two lightweight discovery surfaces:
+graphql-mcp now ships three lightweight discovery surfaces:
 
 - `tools/list` includes per-tool `domain`, `category`, `tags`, and `semanticHints` annotations
 - `catalog/list` returns grouped domain summaries, semantic hints, and tool metadata for exploration UIs
 - `catalog/search` returns ranked matches with optional query/domain/category/tag filters for discovery UIs
+
+Use [docs/exploration.md](docs/exploration.md) and
+[examples/discovery-workflow](examples/discovery-workflow) for a hands-on discovery walkthrough against the sample apps.
 
 ## Supported AI Clients
 
@@ -84,7 +87,7 @@ dotnet add package GraphQL.MCP.GraphQLDotNet
 <dependency>
     <groupId>dev.graphql-mcp</groupId>
     <artifactId>graphql-mcp-spring-boot-starter</artifactId>
-    <version>0.1.0-alpha.3</version>
+    <version>0.1.0-alpha.5</version>
 </dependency>
 ```
 
@@ -267,6 +270,7 @@ Restart Claude Desktop. Your GraphQL operations will appear as tools.
 | Getting Started (Java) | [docs/java/getting-started.md](docs/java/getting-started.md) |
 | Configuration (Java) | [docs/java/configuration.md](docs/java/configuration.md) |
 | Discovery | [docs/discovery.md](docs/discovery.md) |
+| Exploration Workflow | [docs/exploration.md](docs/exploration.md) |
 | Policies | [docs/policies.md](docs/policies.md) |
 | Adapters | [docs/adapters.md](docs/adapters.md) |
 | Roadmap | [docs/roadmap.md](docs/roadmap.md) |
@@ -290,7 +294,8 @@ Restart Claude Desktop. Your GraphQL operations will appear as tools.
 - [x] Spring GraphQL starter
 - [ ] MCP Resources (schema summary, type docs)
 - [ ] MCP Prompts (curated exploration templates)
-- [x] AI-friendly discovery (domain grouping, semantic hints, and grouped catalogs)
+- [x] AI-friendly discovery (domain grouping, semantic hints, grouped catalogs, and catalog search)
+- [x] Curated exploration workflow and reusable request assets for the sample apps
 - [ ] OAuth 2.1 metadata support
 - [ ] stdio transport
 - [ ] Netflix DGS adapter
