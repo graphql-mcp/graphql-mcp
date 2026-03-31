@@ -135,7 +135,6 @@ This lets teams reuse a common preset, define a small profile for domain-specifi
 
 ## What Is Not There Yet
 
-- Netflix DGS adapter
 - deeper semantic ranking beyond the current lightweight hint model
 
 ## Related Docs

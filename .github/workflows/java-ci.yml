@@ -5,12 +5,14 @@ on:
     branches: [main, develop]
     paths:
       - 'src/java/**'
+      - 'examples/java-dgs-minimal/**'
       - 'examples/java-spring-minimal/**'
       - '.github/workflows/java-ci.yml'
   pull_request:
     branches: [main]
     paths:
       - 'src/java/**'
+      - 'examples/java-dgs-minimal/**'
       - 'examples/java-spring-minimal/**'
       - '.github/workflows/java-ci.yml'
 
@@ -43,11 +45,16 @@ jobs:
       - name: Test
         run: mvn -B -ntp -Dmaven.repo.local="${{ env.MAVEN_REPO_LOCAL }}" -f src/java/pom.xml test
 
+      - name: Verify release packaging
+        run: mvn -B -ntp -Dmaven.repo.local="${{ env.MAVEN_REPO_LOCAL }}" -f src/java/pom.xml -P release -DskipTests -Dgpg.skip=true verify
+
       - name: Generate coverage report
         run: mvn -B -ntp -Dmaven.repo.local="${{ env.MAVEN_REPO_LOCAL }}" -f src/java/pom.xml jacoco:report
 
-      - name: Smoke build Java example
-        run: mvn -B -ntp -Dmaven.repo.local="${{ env.MAVEN_REPO_LOCAL }}" -f examples/java-spring-minimal/pom.xml -DskipTests package
+      - name: Smoke build Java examples
+        run: |
+          mvn -B -ntp -Dmaven.repo.local="${{ env.MAVEN_REPO_LOCAL }}" -f examples/java-spring-minimal/pom.xml -DskipTests package
+          mvn -B -ntp -Dmaven.repo.local="${{ env.MAVEN_REPO_LOCAL }}" -f examples/java-dgs-minimal/pom.xml -DskipTests package
 
       - name: Upload coverage
         uses: codecov/codecov-action@v5

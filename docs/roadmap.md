@@ -19,14 +19,17 @@ This roadmap tracks the cross-framework direction of graphql-mcp.
 - stronger domain inference and grouping heuristics for large schemas
 - OAuth 2.1 metadata support across MCP discovery surfaces and a well-known metadata route
 - stdio transport
+- Netflix DGS adapter
+- launch polish across README, release guidance, and examples
+- beta hardening for CI, package validation, and prerelease/stable release behavior
 - Java Spring GraphQL alpha-preview track
 - CI/CD for NuGet and Maven Central
 - docs and example apps for .NET and Java
 
 ## Near-Term
 
-- launch polish across README, release notes, and examples
-- stronger Java hardening from alpha-preview to broader alpha confidence
+- stabilize Spring GraphQL and DGS together from alpha-preview toward broader Java beta confidence
+- cut the first .NET beta after one quiet compatibility cycle
 
 ## Next Differentiators
 
@@ -35,4 +38,4 @@ This roadmap tracks the cross-framework direction of graphql-mcp.
 
 ## Later
 
-- Netflix DGS adapter
+- additional Java and non-Java adapters based on ecosystem demand

@@ -49,8 +49,15 @@ jobs:
       - name: Create GitHub Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
         run: |
-          gh release create "${GITHUB_REF_NAME}" \
-            --title "${GITHUB_REF_NAME}" \
-            --notes "Maven Central release for graphql-mcp-java ${GITHUB_REF_NAME}" \
-            --prerelease
+          if [[ "${{ steps.version.outputs.VERSION }}" == *-* ]]; then
+            gh release create "${GITHUB_REF_NAME}" \
+              --title "${GITHUB_REF_NAME}" \
+              --notes "Maven Central prerelease for graphql-mcp-java ${GITHUB_REF_NAME}" \
+              --prerelease
+          else
+            gh release create "${GITHUB_REF_NAME}" \
+              --title "${GITHUB_REF_NAME}" \
+              --notes "Maven Central release for graphql-mcp-java ${GITHUB_REF_NAME}"
+          fi

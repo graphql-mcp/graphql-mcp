@@ -9,9 +9,6 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![.NET CI](https://github.com/graphql-mcp/graphql-mcp/actions/workflows/dotnet-ci.yml/badge.svg)](https://github.com/graphql-mcp/graphql-mcp/actions/workflows/dotnet-ci.yml)
 
-<!-- TODO: Add 30-second demo GIF here -->
-<!-- ![Demo](docs/assets/demo.gif) -->
-
 ---
 
 ## What is this?
@@ -66,7 +63,7 @@ Use [docs/exploration.md](docs/exploration.md) and
 | Hot Chocolate (.NET) | Alpha | [`GraphQL.MCP.HotChocolate`](https://www.nuget.org/packages/GraphQL.MCP.HotChocolate) |
 | graphql-dotnet (.NET) | Alpha | [`GraphQL.MCP.GraphQLDotNet`](https://www.nuget.org/packages/GraphQL.MCP.GraphQLDotNet) |
 | Spring GraphQL (Java) | Alpha Preview | [`dev.graphql-mcp:graphql-mcp-spring-boot-starter`](https://central.sonatype.com/artifact/dev.graphql-mcp/graphql-mcp-spring-boot-starter) |
-| Netflix DGS (Java) | Planned | - |
+| Netflix DGS (Java) | Preview (next alpha) | `dev.graphql-mcp:graphql-mcp-dgs` |
 
 ---
 
@@ -91,6 +88,16 @@ dotnet add package GraphQL.MCP.GraphQLDotNet
     <groupId>dev.graphql-mcp</groupId>
     <artifactId>graphql-mcp-spring-boot-starter</artifactId>
     <version>0.1.0-alpha.5</version>
+</dependency>
+```
+
+### Java (Netflix DGS)
+
+```xml
+<dependency>
+    <groupId>dev.graphql-mcp</groupId>
+    <artifactId>graphql-mcp-dgs</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
 </dependency>
 ```
 
@@ -274,6 +281,16 @@ See [docs/architecture.md](docs/architecture.md) for the full design.
 
 ---
 
+## Release Channels
+
+- `.NET` is on the path to `beta`. The current alpha line is feature-rich enough that the next milestone should focus on compatibility, polish, and quiet-cycle validation.
+- `Java` remains `alpha preview`. Spring GraphQL is published, DGS is implemented for the next alpha, and the next milestone should focus on stabilizing both adapters before a Java beta discussion.
+- Any tag with `-alpha`, `-beta`, or `-rc` is treated as a prerelease in GitHub Releases. Stable tags without a prerelease suffix become the normal latest release line.
+
+For the full release checklist and beta criteria, see [docs/releases.md](docs/releases.md).
+
+---
+
 ## Claude Desktop Setup
 
 Start your GraphQL MCP server, then add to `claude_desktop_config.json`:
@@ -300,6 +317,7 @@ Restart Claude Desktop. Your GraphQL operations will appear as tools.
 | Getting Started (.NET) | [docs/dotnet/getting-started.md](docs/dotnet/getting-started.md) |
 | Configuration (.NET) | [docs/dotnet/configuration.md](docs/dotnet/configuration.md) |
 | Getting Started (Java) | [docs/java/getting-started.md](docs/java/getting-started.md) |
+| Getting Started (DGS) | [docs/java/dgs-getting-started.md](docs/java/dgs-getting-started.md) |
 | Configuration (Java) | [docs/java/configuration.md](docs/java/configuration.md) |
 | Discovery | [docs/discovery.md](docs/discovery.md) |
 | Prompts | [docs/prompts.md](docs/prompts.md) |
@@ -307,6 +325,7 @@ Restart Claude Desktop. Your GraphQL operations will appear as tools.
 | Exploration Workflow | [docs/exploration.md](docs/exploration.md) |
 | Policies | [docs/policies.md](docs/policies.md) |
 | Adapters | [docs/adapters.md](docs/adapters.md) |
+| Releases | [docs/releases.md](docs/releases.md) |
 | Roadmap | [docs/roadmap.md](docs/roadmap.md) |
 | How Mapping Works | [docs/mapping.md](docs/mapping.md) |
 | Security Model | [docs/security.md](docs/security.md) |
@@ -336,7 +355,7 @@ Restart Claude Desktop. Your GraphQL operations will appear as tools.
 - [x] Shared policy packs for common schema families and industry domains
 - [x] OAuth 2.1 metadata support
 - [x] stdio transport
-- [ ] Netflix DGS adapter
+- [x] Netflix DGS adapter
 
 ---
 

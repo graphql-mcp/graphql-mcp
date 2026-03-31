@@ -38,10 +38,14 @@ The shared core is responsible for:
   - `dev.graphql-mcp:graphql-mcp-web`
 - role: alpha-preview Java adapter
 
+### Netflix DGS (Java)
+
+- package: `dev.graphql-mcp:graphql-mcp-dgs`
+- role: thin DGS adapter layered on the shared Spring GraphQL integration
+
 ## Planned Adapters
 
-- Netflix DGS
-- broader Java ecosystem expansion after Spring hardening
+- broader Java ecosystem expansion after Spring and DGS hardening
 
 ## Non-Goals
 
