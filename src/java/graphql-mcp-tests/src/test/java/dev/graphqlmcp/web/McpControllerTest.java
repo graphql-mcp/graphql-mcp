@@ -56,6 +56,15 @@ class McpControllerTest {
             .path("resources")
             .path("read")
             .asBoolean());
+    assertEquals(
+        "none",
+        initializeResponse
+            .getBody()
+            .path("result")
+            .path("capabilities")
+            .path("authorization")
+            .path("mode")
+            .asText());
 
     var missingSessionResponse =
         controller.handle(jsonRpcRequest("tools/list", null), null, new MockHttpServletRequest());
@@ -162,6 +171,29 @@ class McpControllerTest {
             .path("resources")
             .toString()
             .contains("graphql-mcp://catalog/tool/api_get_book"));
+  }
+
+  @Test
+  void resources_list_includes_authorization_metadata_when_configured() {
+    McpController controller = createController(createAuthorizationMetadata());
+    String sessionId =
+        controller
+            .handle(jsonRpcRequest("initialize", null), null, new MockHttpServletRequest())
+            .getHeaders()
+            .getFirst("Mcp-Session-Id");
+
+    var response =
+        controller.handle(
+            jsonRpcRequest("resources/list", null), sessionId, new MockHttpServletRequest());
+
+    assertEquals(HttpStatus.OK, response.getStatusCode());
+    assertTrue(
+        response
+            .getBody()
+            .path("result")
+            .path("resources")
+            .toString()
+            .contains("graphql-mcp://auth/metadata"));
   }
 
   @Test
@@ -365,6 +397,46 @@ class McpControllerTest {
   }
 
   @Test
+  void resources_read_json_rpc_returns_authorization_metadata() throws Exception {
+    McpController controller = createController(createAuthorizationMetadata());
+    String sessionId =
+        controller
+            .handle(jsonRpcRequest("initialize", null), null, new MockHttpServletRequest())
+            .getHeaders()
+            .getFirst("Mcp-Session-Id");
+
+    ObjectNode params = MAPPER.createObjectNode();
+    params.put("uri", "graphql-mcp://auth/metadata");
+
+    var response =
+        controller.handle(
+            jsonRpcRequest("resources/read", params), sessionId, new MockHttpServletRequest());
+
+    assertEquals(HttpStatus.OK, response.getStatusCode());
+
+    JsonNode payload =
+        MAPPER.readTree(
+            response.getBody().path("result").path("contents").get(0).path("text").asText());
+    assertEquals("authorizationMetadata", payload.path("kind").asText());
+    assertEquals("passthrough", payload.path("mode").asText());
+    assertTrue(payload.path("requiredScopes").toString().contains("orders.read"));
+    assertEquals("https://auth.example.com", payload.path("oauth2").path("issuer").asText());
+  }
+
+  @Test
+  void well_known_oauth_metadata_route_returns_document_when_configured() {
+    McpController controller = createController(createAuthorizationMetadata());
+
+    var response = controller.handleOAuthAuthorizationServerMetadata();
+
+    assertEquals(HttpStatus.OK, response.getStatusCode());
+    assertEquals("https://auth.example.com", response.getBody().path("issuer").asText());
+    assertEquals(
+        "graphql-mcp://auth/metadata",
+        response.getBody().path("x_graphql_mcp").path("resource_uri").asText());
+  }
+
+  @Test
   void catalog_search_json_rpc_returns_ranked_matches() {
     McpController controller = createController();
     String sessionId =
@@ -446,6 +518,11 @@ class McpControllerTest {
   }
 
   private static McpController createController() {
+    return createController(GraphQLMCPServer.AuthorizationMetadata.none());
+  }
+
+  private static McpController createController(
+      GraphQLMCPServer.AuthorizationMetadata authMetadata) {
     ToolDescriptor bookTool =
         new ToolDescriptor(
             "api_get_book",
@@ -475,8 +552,24 @@ class McpControllerTest {
 
     GraphQLExecutor executor = new GraphQLExecutor(TestSchemas.createExecutionSchema());
     ToolExecutor toolExecutor = new ToolExecutor(executor, List.of(tool, bookTool));
-    GraphQLMCPServer server = new GraphQLMCPServer(List.of(tool, bookTool));
+    GraphQLMCPServer server = new GraphQLMCPServer(List.of(tool, bookTool), authMetadata);
     return new McpController(server, toolExecutor, List.of(tool, bookTool));
+  }
+
+  private static GraphQLMCPServer.AuthorizationMetadata createAuthorizationMetadata() {
+    return new GraphQLMCPServer.AuthorizationMetadata(
+        "passthrough",
+        List.of("orders.read", "orders.write"),
+        new GraphQLMCPServer.OAuthMetadata(
+            "https://auth.example.com",
+            "https://auth.example.com/authorize",
+            "https://auth.example.com/token",
+            "https://auth.example.com/register",
+            "https://auth.example.com/jwks",
+            "https://docs.example.com/auth",
+            List.of("code"),
+            List.of("authorization_code", "refresh_token"),
+            List.of("none")));
   }
 
   private static ObjectNode findDomain(JsonNode domains, String name) {

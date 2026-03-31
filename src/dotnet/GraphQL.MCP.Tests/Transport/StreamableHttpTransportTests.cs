@@ -110,6 +110,34 @@ public class StreamableHttpTransportTests
     }
 
     [Fact]
+    public async Task Initialize_should_include_authorization_metadata_capability_when_configured()
+    {
+        using var host = await CreateTestHost(options =>
+        {
+            options.Authorization.Mode = McpAuthMode.Passthrough;
+            options.Authorization.RequiredScopes.Add("orders.read");
+            options.Authorization.Metadata.Issuer = "https://auth.example.com";
+            options.Authorization.Metadata.AuthorizationEndpoint = "https://auth.example.com/authorize";
+            options.Authorization.Metadata.TokenEndpoint = "https://auth.example.com/token";
+        });
+        using var client = host.GetTestClient();
+
+        var response = await SendMcpRequest(client, "initialize", null);
+        var json = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+        var authorization = json.RootElement.GetProperty("result")
+            .GetProperty("capabilities")
+            .GetProperty("authorization");
+
+        authorization.GetProperty("mode").GetString().Should().Be("passthrough");
+        authorization.GetProperty("requiredScopes").EnumerateArray()
+            .Select(element => element.GetString())
+            .Should().Contain("orders.read");
+        authorization.GetProperty("oauth2").GetProperty("metadata").GetBoolean().Should().BeTrue();
+        authorization.GetProperty("oauth2").GetProperty("resource").GetString()
+            .Should().Be("graphql-mcp://auth/metadata");
+    }
+
+    [Fact]
     public async Task Valid_session_id_should_be_accepted()
     {
         using var host = await CreateTestHost();
@@ -295,6 +323,25 @@ public class StreamableHttpTransportTests
     }
 
     [Fact]
+    public async Task Resources_list_should_include_authorization_metadata_when_configured()
+    {
+        using var host = await CreateTestHost(options =>
+        {
+            options.Authorization.Mode = McpAuthMode.Passthrough;
+            options.Authorization.RequiredScopes.Add("orders.read");
+        });
+        using var client = host.GetTestClient();
+        var sessionId = await InitializeSessionAsync(client);
+
+        var response = await SendMcpRequest(client, "resources/list", null, sessionId);
+        var json = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+
+        json.RootElement.GetProperty("result").GetProperty("resources").EnumerateArray()
+            .Select(resource => resource.GetProperty("uri").GetString())
+            .Should().Contain("graphql-mcp://auth/metadata");
+    }
+
+    [Fact]
     public async Task Resources_read_should_return_domain_summary()
     {
         using var host = await CreateTestHost();
@@ -370,6 +417,68 @@ public class StreamableHttpTransportTests
         payload.RootElement.GetProperty("recommendedPrompts").EnumerateArray()
             .Select(element => element.GetString())
             .Should().Contain("plan_task_workflow");
+    }
+
+    [Fact]
+    public async Task Resources_read_should_return_authorization_metadata()
+    {
+        using var host = await CreateTestHost(options =>
+        {
+            options.Authorization.Mode = McpAuthMode.Passthrough;
+            options.Authorization.RequiredScopes.Add("orders.read");
+            options.Authorization.RequiredScopes.Add("orders.write");
+            options.Authorization.Metadata.Issuer = "https://auth.example.com";
+            options.Authorization.Metadata.AuthorizationEndpoint = "https://auth.example.com/authorize";
+            options.Authorization.Metadata.TokenEndpoint = "https://auth.example.com/token";
+        });
+        using var client = host.GetTestClient();
+        var sessionId = await InitializeSessionAsync(client);
+
+        var response = await SendMcpRequest(
+            client,
+            "resources/read",
+            "{\"uri\":\"graphql-mcp://auth/metadata\"}",
+            sessionId);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var json = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+        var content = json.RootElement.GetProperty("result").GetProperty("contents")[0];
+        using var payload = JsonDocument.Parse(content.GetProperty("text").GetString()!);
+
+        payload.RootElement.GetProperty("kind").GetString().Should().Be("authorizationMetadata");
+        payload.RootElement.GetProperty("mode").GetString().Should().Be("passthrough");
+        payload.RootElement.GetProperty("requiredScopes").EnumerateArray()
+            .Select(element => element.GetString())
+            .Should().Contain(["orders.read", "orders.write"]);
+        payload.RootElement.GetProperty("oauth2").GetProperty("issuer").GetString()
+            .Should().Be("https://auth.example.com");
+    }
+
+    [Fact]
+    public async Task Well_known_oauth_metadata_route_should_return_metadata_when_configured()
+    {
+        using var host = await CreateTestHost(options =>
+        {
+            options.Authorization.Mode = McpAuthMode.Passthrough;
+            options.Authorization.RequiredScopes.Add("orders.read");
+            options.Authorization.Metadata.Issuer = "https://auth.example.com";
+            options.Authorization.Metadata.AuthorizationEndpoint = "https://auth.example.com/authorize";
+            options.Authorization.Metadata.TokenEndpoint = "https://auth.example.com/token";
+            options.Authorization.Metadata.ServiceDocumentation = "https://docs.example.com/auth";
+        });
+        using var client = host.GetTestClient();
+
+        var response = await client.GetAsync("/mcp/.well-known/oauth-authorization-server");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var json = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+        json.RootElement.GetProperty("issuer").GetString().Should().Be("https://auth.example.com");
+        json.RootElement.GetProperty("authorization_endpoint").GetString()
+            .Should().Be("https://auth.example.com/authorize");
+        json.RootElement.GetProperty("x_graphql_mcp").GetProperty("resource_uri").GetString()
+            .Should().Be("graphql-mcp://auth/metadata");
     }
 
     [Fact]
@@ -524,7 +633,7 @@ public class StreamableHttpTransportTests
             .Should().Be("Missing Mcp-Session-Id header");
     }
 
-    private static async Task<IHost> CreateTestHost()
+    private static async Task<IHost> CreateTestHost(Action<McpOptions>? configure = null)
     {
         var schemaSource = Substitute.For<IGraphQLSchemaSource>();
         schemaSource.GetOperationsAsync(Arg.Any<CancellationToken>())
@@ -593,7 +702,7 @@ public class StreamableHttpTransportTests
                 {
                     services.AddSingleton(schemaSource);
                     services.AddSingleton(executor);
-                    services.AddGraphQLMcp();
+                    services.AddGraphQLMcp(configure);
                     services.AddRouting();
                 });
                 webBuilder.Configure(app =>

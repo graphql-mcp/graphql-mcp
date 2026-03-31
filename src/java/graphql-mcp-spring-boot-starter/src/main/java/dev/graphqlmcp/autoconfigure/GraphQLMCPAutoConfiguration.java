@@ -61,8 +61,25 @@ public class GraphQLMCPAutoConfiguration {
   }
 
   @Bean
-  public GraphQLMCPServer graphQLMCPServer(List<ToolDescriptor> tools) {
-    return new GraphQLMCPServer(tools);
+  public GraphQLMCPServer graphQLMCPServer(
+      List<ToolDescriptor> tools, GraphQLMCPProperties properties) {
+    var authorization = properties.getAuthorization();
+    var metadata = authorization.getMetadata();
+    var authMetadata =
+        new GraphQLMCPServer.AuthorizationMetadata(
+            authorization.getMode(),
+            List.copyOf(authorization.getRequiredScopes()),
+            new GraphQLMCPServer.OAuthMetadata(
+                metadata.getIssuer(),
+                metadata.getAuthorizationEndpoint(),
+                metadata.getTokenEndpoint(),
+                metadata.getRegistrationEndpoint(),
+                metadata.getJwksUri(),
+                metadata.getServiceDocumentation(),
+                List.copyOf(metadata.getResponseTypesSupported()),
+                List.copyOf(metadata.getGrantTypesSupported()),
+                List.copyOf(metadata.getTokenEndpointAuthMethodsSupported())));
+    return new GraphQLMCPServer(tools, authMetadata);
   }
 
   @Bean

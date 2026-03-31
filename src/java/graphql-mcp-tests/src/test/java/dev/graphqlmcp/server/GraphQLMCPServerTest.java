@@ -24,7 +24,22 @@ class GraphQLMCPServerTest {
             OperationType.QUERY,
             Map.of(),
             "hello");
-    GraphQLMCPServer server = new GraphQLMCPServer(List.of(tool));
+    GraphQLMCPServer server =
+        new GraphQLMCPServer(
+            List.of(tool),
+            new GraphQLMCPServer.AuthorizationMetadata(
+                "passthrough",
+                List.of("greeting.read"),
+                new GraphQLMCPServer.OAuthMetadata(
+                    "https://auth.example.com",
+                    "https://auth.example.com/authorize",
+                    "https://auth.example.com/token",
+                    null,
+                    null,
+                    null,
+                    List.of("code"),
+                    List.of("authorization_code"),
+                    List.of("none"))));
 
     GraphQLMCPServer.InitializeResult init = server.initialize();
 
@@ -38,6 +53,11 @@ class GraphQLMCPServerTest {
     assertTrue(init.capabilities().catalog().list());
     assertTrue(init.capabilities().catalog().search());
     assertEquals("domain", init.capabilities().catalog().grouping());
+    assertEquals("passthrough", init.capabilities().authorization().mode());
+    assertEquals(
+        GraphQLMCPServer.AuthorizationMetadata.RESOURCE_URI,
+        init.capabilities().authorization().oauth2().resource());
+    assertTrue(init.capabilities().authorization().oauth2().metadata());
     assertEquals(1, server.listTools().size());
     assertTrue(server.hasTool("api_get_hello"));
     assertFalse(server.hasTool("missing"));

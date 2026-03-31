@@ -27,6 +27,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - advanced prompt/resource packs including workflow planning, candidate comparison, safe-call preparation, tool summaries, and reusable discovery playbooks
 - advanced policy controls including domain curation, minimum description length, and weighted argument complexity limits
 - reusable policy presets and profiles with built-in balanced, curated, strict, and exploratory baselines
+- shared policy packs for commerce, content, and operations-oriented schemas
+- stronger domain inference that falls back through return types, wrapper members, field names, and descriptions
+- OAuth 2.1 metadata discovery across `initialize`, `resources/read graphql-mcp://auth/metadata`, and `/.well-known/oauth-authorization-server`
 - dedicated docs for policies, adapters, and roadmap
 ### Fixed
 - ISchema DI resolution crash - Hot Chocolate adapter now uses `IRequestExecutorResolver` instead of `ISchema` (not registered in HC DI container)

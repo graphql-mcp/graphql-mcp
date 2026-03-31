@@ -185,6 +185,62 @@ public class ToolPublisherTests
     }
 
     [Fact]
+    public void Should_infer_domain_from_return_type_fields_when_wrapper_name_is_generic()
+    {
+        var sut = CreateSut();
+        var op = new CanonicalOperation
+        {
+            Name = "search",
+            GraphQLFieldName = "search",
+            Description = "Search across indexed content",
+            OperationType = OperationType.Query,
+            ReturnType = new CanonicalType
+            {
+                Name = "SearchResult",
+                Kind = TypeKind.Object,
+                Fields =
+                [
+                    new CanonicalField
+                    {
+                        Name = "articles",
+                        Type = new CanonicalType { Name = "String", Kind = TypeKind.Scalar }
+                    },
+                    new CanonicalField
+                    {
+                        Name = "totalCount",
+                        Type = new CanonicalType { Name = "Int", Kind = TypeKind.Scalar }
+                    }
+                ]
+            }
+        };
+
+        var tools = sut.Publish([op]);
+
+        tools[0].Domain.Should().Be("article");
+    }
+
+    [Fact]
+    public void Should_infer_domain_from_description_when_operation_name_is_generic()
+    {
+        var sut = CreateSut();
+        var op = CreateQueryOp(
+            "search",
+            "Search articles by title",
+            [
+                new CanonicalArgument
+                {
+                    Name = "title",
+                    Type = new CanonicalType { Name = "String", Kind = TypeKind.Scalar }
+                }
+            ]);
+
+        var tools = sut.Publish([op]);
+
+        tools[0].Domain.Should().Be("article");
+        tools[0].SemanticHints.Keywords.Should().Contain("article");
+    }
+
+    [Fact]
     public void Should_prefix_mutations_with_MUTATION_in_description()
     {
         var sut = CreateSut(new McpOptions { AllowMutations = true });

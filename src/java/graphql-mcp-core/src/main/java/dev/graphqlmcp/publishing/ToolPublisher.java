@@ -50,10 +50,45 @@ public class ToolPublisher {
           "collection",
           "collections",
           "viewer",
-          "viewers");
+          "viewers",
+          "summary",
+          "summaries",
+          "overview",
+          "detail",
+          "details",
+          "profile",
+          "profiles",
+          "metric",
+          "metrics",
+          "stat",
+          "stats",
+          "feed",
+          "feeds",
+          "info",
+          "information",
+          "report",
+          "reports",
+          "metadata",
+          "meta",
+          "total",
+          "totals");
 
   private static final Set<String> GENERIC_DOMAIN_TOKENS =
-      Set.of("api", "graphql", "service", "services", "endpoint", "endpoints", "core");
+      Set.of(
+          "api",
+          "graphql",
+          "service",
+          "services",
+          "endpoint",
+          "endpoints",
+          "core",
+          "platform",
+          "system",
+          "systems",
+          "query",
+          "mutation",
+          "entity",
+          "entities");
 
   private final GraphQLToMCPToolMapper mapper;
   private final GraphQLMCPConfig config;
@@ -162,19 +197,29 @@ public class ToolPublisher {
 
     if (fieldDef != null) {
       GraphQLType unwrapped = GraphQLTypeUtil.unwrapAll(fieldDef.getType());
-      if (unwrapped instanceof GraphQLObjectType
-          || unwrapped instanceof GraphQLInterfaceType
-          || unwrapped instanceof GraphQLUnionType) {
-        String fromType = inferDomainGroup(((GraphQLNamedType) unwrapped).getName());
-        if (!GENERAL_DOMAIN.equals(fromType)) {
-          return fromType;
-        }
+      String fromType = inferDomainFromType(unwrapped);
+      if (!GENERAL_DOMAIN.equals(fromType)) {
+        return fromType;
       }
     }
 
     String fromField = inferDomainGroup(op.graphQLFieldName());
     if (!GENERAL_DOMAIN.equals(fromField)) {
       return fromField;
+    }
+
+    if (op.description() != null) {
+      String fromDescription = inferDomainGroup(op.description());
+      if (!GENERAL_DOMAIN.equals(fromDescription)) {
+        return fromDescription;
+      }
+    }
+
+    for (CanonicalArgument arg : op.arguments()) {
+      String fromArgument = inferDomainGroup(arg.name());
+      if (!GENERAL_DOMAIN.equals(fromArgument)) {
+        return fromArgument;
+      }
     }
 
     return GENERAL_DOMAIN;
@@ -234,14 +279,65 @@ public class ToolPublisher {
       return GENERAL_DOMAIN;
     }
 
-    for (int index = tokens.size() - 1; index >= 0; index--) {
-      String token = tokens.get(index);
+    for (String token : tokens) {
       if (!GENERIC_DOMAIN_TOKENS.contains(token)) {
         return singularize(token);
       }
     }
 
     return GENERAL_DOMAIN;
+  }
+
+  private String inferDomainFromType(GraphQLType type) {
+    if (type instanceof GraphQLObjectType
+        || type instanceof GraphQLInterfaceType
+        || type instanceof GraphQLUnionType) {
+      GraphQLNamedType namedType = (GraphQLNamedType) type;
+      String fromTypeName = inferDomainGroup(namedType.getName());
+      if (!GENERAL_DOMAIN.equals(fromTypeName)) {
+        return fromTypeName;
+      }
+    }
+
+    Map<String, Integer> candidates = new LinkedHashMap<>();
+
+    if (type instanceof GraphQLFieldsContainer fieldsContainer) {
+      for (GraphQLFieldDefinition field : fieldsContainer.getFieldDefinitions()) {
+        String candidate = inferDomainGroup(field.getName());
+        if (!GENERAL_DOMAIN.equals(candidate)) {
+          candidates.merge(candidate, 1, Integer::sum);
+        }
+      }
+    }
+
+    if (type instanceof GraphQLUnionType unionType) {
+      for (GraphQLNamedOutputType member : unionType.getTypes()) {
+        String candidate = inferDomainGroup(member.getName());
+        if (!GENERAL_DOMAIN.equals(candidate)) {
+          candidates.merge(candidate, 1, Integer::sum);
+        }
+
+        if (member instanceof GraphQLFieldsContainer fieldsContainer) {
+          for (GraphQLFieldDefinition field : fieldsContainer.getFieldDefinitions()) {
+            candidate = inferDomainGroup(field.getName());
+            if (!GENERAL_DOMAIN.equals(candidate)) {
+              candidates.merge(candidate, 1, Integer::sum);
+            }
+          }
+        }
+      }
+    }
+
+    String bestCandidate = GENERAL_DOMAIN;
+    int bestScore = -1;
+    for (Map.Entry<String, Integer> entry : candidates.entrySet()) {
+      if (entry.getValue() > bestScore) {
+        bestCandidate = entry.getKey();
+        bestScore = entry.getValue();
+      }
+    }
+
+    return bestCandidate;
   }
 
   private ToolDescriptor.SemanticHints buildSemanticHints(

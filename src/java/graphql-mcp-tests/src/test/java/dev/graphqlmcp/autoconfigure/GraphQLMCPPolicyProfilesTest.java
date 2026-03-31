@@ -46,6 +46,20 @@ class GraphQLMCPPolicyProfilesTest {
   }
 
   @Test
+  void applies_shared_policy_pack_domains() {
+    GraphQLMCPProperties properties = new GraphQLMCPProperties();
+    properties.setPolicyPack("commerce");
+
+    GraphQLMCPConfig config = GraphQLMCPPolicyProfiles.resolve(properties);
+
+    assertAll(
+        () -> assertEquals(8, config.includedDomains().size()),
+        () -> assertTrue(config.includedDomains().contains("order")),
+        () -> assertTrue(config.excludedDomains().contains("admin")),
+        () -> assertEquals(60, config.maxArgumentComplexity()));
+  }
+
+  @Test
   void applies_explicit_top_level_overrides_after_policy_preset() {
     GraphQLMCPProperties properties = new GraphQLMCPProperties();
     properties.setPolicyPreset("exploratory");

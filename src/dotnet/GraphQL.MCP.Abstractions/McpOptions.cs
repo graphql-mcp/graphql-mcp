@@ -17,6 +17,12 @@ public sealed class McpOptions
     public McpPolicyProfile? PolicyProfile { get; set; }
 
     /// <summary>
+    /// Optional shared policy pack for common schema families and industry domains.
+    /// Applied after the preset and before PolicyProfile overrides.
+    /// </summary>
+    public McpPolicyPack PolicyPack { get; set; }
+
+    /// <summary>
     /// Prefix for all generated tool names. Example: "myapi" → "myapi_getUsers".
     /// </summary>
     public string? ToolPrefix { get; set; }
@@ -122,6 +128,62 @@ public sealed class McpAuthorizationOptions
     /// Required scopes for tool invocation (when Mode != None).
     /// </summary>
     public List<string> RequiredScopes { get; set; } = [];
+
+    /// <summary>
+    /// Optional OAuth 2.1-style metadata advertised to MCP clients.
+    /// </summary>
+    public McpOAuthMetadataOptions Metadata { get; set; } = new();
+}
+
+/// <summary>
+/// Optional OAuth metadata advertised through MCP resources and well-known metadata routes.
+/// </summary>
+public sealed class McpOAuthMetadataOptions
+{
+    /// <summary>
+    /// Authorization server issuer identifier.
+    /// </summary>
+    public string? Issuer { get; set; }
+
+    /// <summary>
+    /// OAuth authorization endpoint used by interactive clients.
+    /// </summary>
+    public string? AuthorizationEndpoint { get; set; }
+
+    /// <summary>
+    /// OAuth token endpoint used by clients to exchange tokens.
+    /// </summary>
+    public string? TokenEndpoint { get; set; }
+
+    /// <summary>
+    /// Optional OAuth client registration endpoint.
+    /// </summary>
+    public string? RegistrationEndpoint { get; set; }
+
+    /// <summary>
+    /// Optional JWKS URI for token verification metadata.
+    /// </summary>
+    public string? JwksUri { get; set; }
+
+    /// <summary>
+    /// Optional documentation URL describing the server's auth expectations.
+    /// </summary>
+    public string? ServiceDocumentation { get; set; }
+
+    /// <summary>
+    /// Supported OAuth response types. Default: ["code"].
+    /// </summary>
+    public List<string> ResponseTypesSupported { get; set; } = ["code"];
+
+    /// <summary>
+    /// Supported OAuth grant types. Default: ["authorization_code", "refresh_token"].
+    /// </summary>
+    public List<string> GrantTypesSupported { get; set; } = ["authorization_code", "refresh_token"];
+
+    /// <summary>
+    /// Supported token endpoint auth methods. Default: ["none"].
+    /// </summary>
+    public List<string> TokenEndpointAuthMethodsSupported { get; set; } = ["none"];
 }
 
 /// <summary>

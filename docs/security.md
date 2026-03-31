@@ -72,6 +72,26 @@ This means:
 - ✅ The GraphQL server handles auth as it normally would
 - ✅ Unauthenticated requests are forwarded as-is (the GraphQL server will reject them)
 
+## OAuth Metadata Discovery
+
+When passthrough auth is enabled, graphql-mcp can also advertise OAuth metadata so clients know how to authenticate before calling tools.
+
+Discovery surfaces:
+
+- `initialize.capabilities.authorization`
+- `resources/read` with `graphql-mcp://auth/metadata`
+- `GET /mcp/.well-known/oauth-authorization-server` (or the custom MCP path equivalent)
+
+Typical metadata includes:
+
+- `requiredScopes`
+- issuer
+- authorization endpoint
+- token endpoint
+- optional registration/JWKS/documentation URLs
+
+graphql-mcp still does **not** issue or validate tokens itself. The metadata is descriptive, not an auth engine.
+
 ## Error Handling
 
 graphql-mcp never leaks internal details through errors:

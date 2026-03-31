@@ -65,6 +65,10 @@ class GraphQLMCPAutoConfigurationTest {
         .withBean(GraphQLSchema.class, TestSchemas::createSchema)
         .withPropertyValues(
             "graphql.mcp.policy-preset=strict",
+            "graphql.mcp.policy-pack=commerce",
+            "graphql.mcp.authorization.mode=passthrough",
+            "graphql.mcp.authorization.required-scopes[0]=orders.read",
+            "graphql.mcp.authorization.metadata.issuer=https://auth.example.com",
             "graphql.mcp.policy-profile.require-descriptions=false",
             "graphql.mcp.policy-profile.min-description-length=0",
             "graphql.mcp.policy-profile.included-domains[0]=book")
@@ -72,6 +76,12 @@ class GraphQLMCPAutoConfigurationTest {
             context -> {
               GraphQLMCPProperties properties = context.getBean(GraphQLMCPProperties.class);
               assertEquals("strict", properties.getPolicyPreset());
+              assertEquals("commerce", properties.getPolicyPack());
+              assertEquals("passthrough", properties.getAuthorization().getMode());
+              assertEquals(1, properties.getAuthorization().getRequiredScopes().size());
+              assertEquals(
+                  "https://auth.example.com",
+                  properties.getAuthorization().getMetadata().getIssuer());
               assertFalse(properties.getPolicyProfile().getRequireDescriptions());
               assertEquals(0, properties.getPolicyProfile().getMinDescriptionLength());
               assertEquals(1, properties.getPolicyProfile().getIncludedDomains().size());

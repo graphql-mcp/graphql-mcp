@@ -7,6 +7,7 @@ builder.Services.AddHotChocolateMcp(options =>
 {
     // --- Reusable presets / profiles ---
     options.PolicyPreset = McpPolicyPreset.Curated; // Balanced | Curated | Strict | Exploratory
+    options.PolicyPack = McpPolicyPack.Commerce;    // None | Commerce | Content | Operations
     options.PolicyProfile = new McpPolicyProfile
     {
         Name = "commerce-api",
@@ -38,7 +39,10 @@ builder.Services.AddHotChocolateMcp(options =>
 
     // --- Auth ---
     options.Authorization.Mode = McpAuthMode.None;   // None | Passthrough
-    options.Authorization.RequiredScopes.Add("api"); // Required OAuth scopes (future)
+    options.Authorization.RequiredScopes.Add("orders.read");
+    options.Authorization.Metadata.Issuer = "https://auth.example.com";
+    options.Authorization.Metadata.AuthorizationEndpoint = "https://auth.example.com/authorize";
+    options.Authorization.Metadata.TokenEndpoint = "https://auth.example.com/token";
 
     // --- Transport ---
     options.Transport = McpTransport.StreamableHttp; // StreamableHttp (only option in v0.1)
@@ -123,6 +127,7 @@ Same as Raw but prefix is always applied. Without a prefix, identical to Raw.
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `PolicyPreset` | `McpPolicyPreset` | `Balanced` | Built-in policy baseline |
+| `PolicyPack` | `McpPolicyPack` | `None` | Shared schema-family or industry profile pack |
 | `PolicyProfile` | `McpPolicyProfile?` | `null` | Reusable override layer applied on top of the preset |
 | `ToolPrefix` | `string?` | `null` | Tool name prefix |
 | `NamingPolicy` | `ToolNamingPolicy` | `VerbNoun` | How tool names are derived |
@@ -139,6 +144,8 @@ Same as Raw but prefix is always applied. Without a prefix, identical to Raw.
 | `IncludedDomains` | `HashSet<string>` | `[]` | Only publish tools from these inferred domains when non-empty |
 | `ExcludedDomains` | `HashSet<string>` | `[]` | Skip tools from these inferred domains |
 | `Authorization.Mode` | `McpAuthMode` | `None` | Auth mode |
+| `Authorization.RequiredScopes` | `List<string>` | `[]` | Scopes advertised to authenticated MCP clients |
+| `Authorization.Metadata.*` | `McpOAuthMetadataOptions` | defaults | Optional OAuth metadata surfaced through MCP resources and the well-known metadata route |
 | `Transport` | `McpTransport` | `StreamableHttp` | Transport protocol |
 
 ## Presets And Profiles
@@ -146,7 +153,8 @@ Same as Raw but prefix is always applied. Without a prefix, identical to Raw.
 The effective policy surface is resolved in this order:
 
 1. built-in preset
-2. optional `PolicyProfile`
-3. top-level options that differ from the default baseline
+2. optional built-in `PolicyPack`
+3. optional `PolicyProfile`
+4. top-level options that differ from the default baseline
 
 Use presets when you want a shared starting point, and use `PolicyProfile` when you want a reusable per-API override pack without copying raw values into every registration call. The existing top-level options remain fully supported and are still the simplest direct configuration surface.

@@ -12,6 +12,7 @@ public class GraphQLMCPProperties {
   private String toolPrefix;
   private String namingPolicy = "verb-noun";
   private String policyPreset = "balanced";
+  private String policyPack = "none";
   private boolean allowMutations = false;
   private List<String> excludedFields = new ArrayList<>();
   private boolean requireDescriptions = false;
@@ -58,6 +59,14 @@ public class GraphQLMCPProperties {
 
   public void setPolicyPreset(String policyPreset) {
     this.policyPreset = policyPreset;
+  }
+
+  public String getPolicyPack() {
+    return policyPack;
+  }
+
+  public void setPolicyPack(String policyPack) {
+    this.policyPack = policyPack;
   }
 
   public boolean isAllowMutations() {
@@ -166,6 +175,8 @@ public class GraphQLMCPProperties {
 
   public static class Authorization {
     private String mode = "none";
+    private List<String> requiredScopes = new ArrayList<>();
+    private Metadata metadata = new Metadata();
 
     public String getMode() {
       return mode;
@@ -173,6 +184,108 @@ public class GraphQLMCPProperties {
 
     public void setMode(String mode) {
       this.mode = mode;
+    }
+
+    public List<String> getRequiredScopes() {
+      return requiredScopes;
+    }
+
+    public void setRequiredScopes(List<String> requiredScopes) {
+      this.requiredScopes = requiredScopes;
+    }
+
+    public Metadata getMetadata() {
+      return metadata;
+    }
+
+    public void setMetadata(Metadata metadata) {
+      this.metadata = metadata;
+    }
+  }
+
+  public static class Metadata {
+    private String issuer;
+    private String authorizationEndpoint;
+    private String tokenEndpoint;
+    private String registrationEndpoint;
+    private String jwksUri;
+    private String serviceDocumentation;
+    private List<String> responseTypesSupported = new ArrayList<>(List.of("code"));
+    private List<String> grantTypesSupported =
+        new ArrayList<>(List.of("authorization_code", "refresh_token"));
+    private List<String> tokenEndpointAuthMethodsSupported = new ArrayList<>(List.of("none"));
+
+    public String getIssuer() {
+      return issuer;
+    }
+
+    public void setIssuer(String issuer) {
+      this.issuer = issuer;
+    }
+
+    public String getAuthorizationEndpoint() {
+      return authorizationEndpoint;
+    }
+
+    public void setAuthorizationEndpoint(String authorizationEndpoint) {
+      this.authorizationEndpoint = authorizationEndpoint;
+    }
+
+    public String getTokenEndpoint() {
+      return tokenEndpoint;
+    }
+
+    public void setTokenEndpoint(String tokenEndpoint) {
+      this.tokenEndpoint = tokenEndpoint;
+    }
+
+    public String getRegistrationEndpoint() {
+      return registrationEndpoint;
+    }
+
+    public void setRegistrationEndpoint(String registrationEndpoint) {
+      this.registrationEndpoint = registrationEndpoint;
+    }
+
+    public String getJwksUri() {
+      return jwksUri;
+    }
+
+    public void setJwksUri(String jwksUri) {
+      this.jwksUri = jwksUri;
+    }
+
+    public String getServiceDocumentation() {
+      return serviceDocumentation;
+    }
+
+    public void setServiceDocumentation(String serviceDocumentation) {
+      this.serviceDocumentation = serviceDocumentation;
+    }
+
+    public List<String> getResponseTypesSupported() {
+      return responseTypesSupported;
+    }
+
+    public void setResponseTypesSupported(List<String> responseTypesSupported) {
+      this.responseTypesSupported = responseTypesSupported;
+    }
+
+    public List<String> getGrantTypesSupported() {
+      return grantTypesSupported;
+    }
+
+    public void setGrantTypesSupported(List<String> grantTypesSupported) {
+      this.grantTypesSupported = grantTypesSupported;
+    }
+
+    public List<String> getTokenEndpointAuthMethodsSupported() {
+      return tokenEndpointAuthMethodsSupported;
+    }
+
+    public void setTokenEndpointAuthMethodsSupported(
+        List<String> tokenEndpointAuthMethodsSupported) {
+      this.tokenEndpointAuthMethodsSupported = tokenEndpointAuthMethodsSupported;
     }
   }
 

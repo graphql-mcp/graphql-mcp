@@ -27,7 +27,7 @@ Some frameworks are adding native MCP support (e.g., Hot Chocolate 16). graphql-
 | | Native framework MCP | graphql-mcp |
 |---|---|---|
 | Cross-framework support | One framework only | Hot Chocolate, graphql-dotnet, Spring |
-| Curation & policy engine | Varies | Presets, reusable profiles, glob-pattern field/type exclusion, mutation blocking, depth limits |
+| Curation & policy engine | Varies | Presets, shared profile packs, reusable profiles, glob-pattern field/type exclusion, mutation blocking, depth limits |
 | AI-friendly naming | Varies | VerbNoun, Raw, PrefixedRaw policies with tool prefixes |
 | Observability | Varies | Built-in OpenTelemetry traces + metrics |
 | Portable core | No | Framework-agnostic engine, adapters are thin |
@@ -42,8 +42,9 @@ graphql-mcp now ships layered discovery surfaces plus MCP prompt workflows:
 - `tools/list` includes per-tool `domain`, `category`, `tags`, and `semanticHints` annotations
 - `prompts/list` and `prompts/get` expose reusable exploration, planning, comparison, and safe-call templates
 - `resources/list` and `resources/read` expose stable overview, domain, tool, and discovery playbook documents
-- `catalog/list` returns grouped domain summaries, semantic hints, and tool metadata for exploration UIs
+- `catalog/list` returns grouped domain summaries, semantic hints, and tool metadata for exploration UIs, with stronger grouping for generic wrappers and search-style schemas
 - `catalog/search` returns ranked matches with optional query/domain/category/tag filters for discovery UIs
+- `initialize`, `resources/read graphql-mcp://auth/metadata`, and `/.well-known/oauth-authorization-server` expose OAuth metadata and required scopes for authenticated clients
 
 Use [docs/exploration.md](docs/exploration.md) and
 [examples/discovery-workflow](examples/discovery-workflow) for a hands-on discovery walkthrough against the sample apps.
@@ -141,6 +142,7 @@ app.Run();
 builder.Services.AddHotChocolateMcp(options =>   // or AddGraphQLDotNetMcp
 {
     options.PolicyPreset = McpPolicyPreset.Curated;
+    options.PolicyPack = McpPolicyPack.Commerce;
     options.PolicyProfile = new McpPolicyProfile
     {
         Name = "commerce-api",
@@ -158,6 +160,10 @@ builder.Services.AddHotChocolateMcp(options =>   // or AddGraphQLDotNetMcp
     options.ExcludedDomains.Add("admin");
 
     options.Authorization.Mode = McpAuthMode.Passthrough;
+    options.Authorization.RequiredScopes.Add("orders.read");
+    options.Authorization.Metadata.Issuer = "https://auth.example.com";
+    options.Authorization.Metadata.AuthorizationEndpoint = "https://auth.example.com/authorize";
+    options.Authorization.Metadata.TokenEndpoint = "https://auth.example.com/token";
     options.Transport = McpTransport.StreamableHttp;
 });
 ```
@@ -181,6 +187,7 @@ graphql:
   mcp:
     enabled: true
     policy-preset: curated
+    policy-pack: commerce
     policy-profile:
       name: commerce-api
       included-domains:
@@ -196,6 +203,12 @@ graphql:
       - admin
     authorization:
       mode: passthrough
+      required-scopes:
+        - orders.read
+      metadata:
+        issuer: https://auth.example.com
+        authorization-endpoint: https://auth.example.com/authorize
+        token-endpoint: https://auth.example.com/token
     transport: streamable-http
 ```
 
@@ -320,7 +333,8 @@ Restart Claude Desktop. Your GraphQL operations will appear as tools.
 - [x] AI-friendly discovery (domain grouping, semantic hints, grouped catalogs, and catalog search)
 - [x] Curated exploration workflow and reusable request assets for the sample apps
 - [x] Reusable policy presets and profiles
-- [ ] OAuth 2.1 metadata support
+- [x] Shared policy packs for common schema families and industry domains
+- [x] OAuth 2.1 metadata support
 - [ ] stdio transport
 - [ ] Netflix DGS adapter
 

@@ -13,6 +13,16 @@ graphql-mcp now ships reusable presets for common curation modes:
 
 Both runtimes also support a reusable profile override layer on top of a preset, so teams can define a preset once and then apply API-specific domain, description, and complexity overrides.
 
+## Shared Profile Packs
+
+graphql-mcp now also ships shared packs for common schema families:
+
+- `Commerce`: product, order, payment, invoice, customer, and shipment-oriented domains
+- `Content`: article, author, media, asset, category, and page-oriented domains
+- `Operations`: service, incident, alert, deployment, ticket, and runbook-oriented domains
+
+Use a pack when you want a practical domain-oriented baseline, then add `PolicyProfile` overrides for application-specific tweaks.
+
 ## Current Policy Surface
 
 ### Publication controls
@@ -34,6 +44,7 @@ Both runtimes also support a reusable profile override layer on top of a preset,
 - `ToolPrefix`: namespace tool names per API or tenant
 - `NamingPolicy`: `VerbNoun`, `Raw`, or `PrefixedRaw` on .NET; `verb-noun` or `raw` on Java
 - `PolicyPreset` / `graphql.mcp.policy-preset`: choose a built-in preset baseline
+- `PolicyPack` / `graphql.mcp.policy-pack`: layer in a shared schema-family or industry pack
 - `PolicyProfile` / `graphql.mcp.policy-profile.*`: reusable per-API overrides layered on top of a preset
 
 ### Query shaping
@@ -61,4 +72,4 @@ This metadata is intentionally lightweight enough to stay portable across runtim
 
 - richer semantic hints beyond the current lightweight hint model
 - deeper domain inference for very large or ambiguous schemas
-- higher-level shared profile packs for common schema shapes and industries
+- broader packs for additional schema families and industry verticals

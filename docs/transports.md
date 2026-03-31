@@ -41,7 +41,7 @@ All messages use JSON-RPC 2.0:
 | `prompts/list` | List available prompt templates |
 | `prompts/get` | Fetch a prompt message sequence by name |
 | `resources/list` | List stable catalog, tool, and discovery pack resources |
-| `resources/read` | Read a catalog overview, domain summary, tool summary, or discovery pack |
+| `resources/read` | Read a catalog overview, auth summary, domain summary, tool summary, or discovery pack |
 | `catalog/list` | Return grouped discovery metadata for published tools |
 | `capabilities/catalog` | Alias for `catalog/list` |
 | `catalog/search` | Return ranked discovery matches with optional filters |
@@ -71,6 +71,15 @@ All messages use JSON-RPC 2.0:
       "catalog": {
         "list": true,
         "search": true
+      },
+      "authorization": {
+        "mode": "passthrough",
+        "requiredScopes": ["orders.read"],
+        "oauth2": {
+          "metadata": true,
+          "resource": "graphql-mcp://auth/metadata",
+          "wellKnownPath": ".well-known/oauth-authorization-server"
+        }
       }
     },
     "serverInfo": {
@@ -204,11 +213,17 @@ For a full sample session that stitches together `initialize`, `tools/list`, `ca
 Common resource URIs now include:
 
 - `graphql-mcp://catalog/overview`
+- `graphql-mcp://auth/metadata`
 - `graphql-mcp://catalog/domain/<domain>`
 - `graphql-mcp://catalog/tool/<tool>`
 - `graphql-mcp://packs/discovery/start-here`
 - `graphql-mcp://packs/discovery/investigate-domain`
 - `graphql-mcp://packs/discovery/safe-tool-call`
+
+When passthrough auth metadata is configured, the transport also exposes:
+
+- `GET /mcp/.well-known/oauth-authorization-server`
+- the same relative path under a custom MCP endpoint, for example `/api/mcp/.well-known/oauth-authorization-server`
 
 ### Prompts List Request
 

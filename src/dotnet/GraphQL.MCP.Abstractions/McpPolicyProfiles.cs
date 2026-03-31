@@ -27,6 +27,17 @@ public enum McpPolicyPreset
 }
 
 /// <summary>
+/// Built-in higher-level profile packs for common schema families and industry domains.
+/// </summary>
+public enum McpPolicyPack
+{
+    None,
+    Commerce,
+    Content,
+    Operations
+}
+
+/// <summary>
 /// Optional reusable policy override layer applied on top of a preset.
 /// </summary>
 public sealed class McpPolicyProfile
@@ -74,10 +85,12 @@ public static class McpPolicyProfiles
     {
         var resolved = CreatePreset(options.PolicyPreset);
 
+        ApplyProfile(resolved, CreatePack(options.PolicyPack));
         ApplyProfile(resolved, options.PolicyProfile);
         ApplyExplicitOverrides(resolved, options);
 
         resolved.PolicyPreset = options.PolicyPreset;
+        resolved.PolicyPack = options.PolicyPack;
         resolved.PolicyProfile = CloneProfile(options.PolicyProfile);
         resolved.ToolPrefix = options.ToolPrefix;
         resolved.Authorization = CloneAuthorization(options.Authorization);
@@ -123,6 +136,48 @@ public static class McpPolicyProfiles
 
         return options;
     }
+
+    public static McpPolicyProfile? CreatePack(McpPolicyPack pack) =>
+        pack switch
+        {
+            McpPolicyPack.Commerce => new McpPolicyProfile
+            {
+                Name = "commerce",
+                IncludedDomains =
+                [
+                    "catalog", "product", "inventory", "order", "invoice", "payment",
+                    "customer", "shipment"
+                ],
+                ExcludedDomains = ["admin", "internal"],
+                MinDescriptionLength = 12,
+                MaxArgumentComplexity = 60,
+                MaxToolCount = 60
+            },
+            McpPolicyPack.Content => new McpPolicyProfile
+            {
+                Name = "content",
+                IncludedDomains = ["article", "author", "content", "media", "asset", "category", "tag", "page"],
+                ExcludedDomains = ["admin", "internal"],
+                MinDescriptionLength = 8,
+                MaxArgumentComplexity = 55,
+                MaxToolCount = 75
+            },
+            McpPolicyPack.Operations => new McpPolicyProfile
+            {
+                Name = "operations",
+                IncludedDomains =
+                [
+                    "service", "incident", "alert", "deployment", "ticket", "runbook",
+                    "environment", "metric"
+                ],
+                ExcludedDomains = ["admin", "internal"],
+                RequireDescriptionsForPublishedTools = true,
+                MinDescriptionLength = 12,
+                MaxArgumentComplexity = 45,
+                MaxToolCount = 40
+            },
+            _ => null
+        };
 
     private static void ApplyProfile(McpOptions target, McpPolicyProfile? profile)
     {
@@ -281,7 +336,22 @@ public static class McpPolicyProfiles
         new()
         {
             Mode = authorization.Mode,
-            RequiredScopes = [.. authorization.RequiredScopes]
+            RequiredScopes = [.. authorization.RequiredScopes],
+            Metadata = CloneAuthorizationMetadata(authorization.Metadata)
+        };
+
+    private static McpOAuthMetadataOptions CloneAuthorizationMetadata(McpOAuthMetadataOptions metadata) =>
+        new()
+        {
+            Issuer = metadata.Issuer,
+            AuthorizationEndpoint = metadata.AuthorizationEndpoint,
+            TokenEndpoint = metadata.TokenEndpoint,
+            RegistrationEndpoint = metadata.RegistrationEndpoint,
+            JwksUri = metadata.JwksUri,
+            ServiceDocumentation = metadata.ServiceDocumentation,
+            ResponseTypesSupported = [.. metadata.ResponseTypesSupported],
+            GrantTypesSupported = [.. metadata.GrantTypesSupported],
+            TokenEndpointAuthMethodsSupported = [.. metadata.TokenEndpointAuthMethodsSupported]
         };
 
     private static McpPolicyProfile? CloneProfile(McpPolicyProfile? profile)

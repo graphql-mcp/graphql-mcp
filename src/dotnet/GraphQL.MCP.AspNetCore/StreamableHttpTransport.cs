@@ -134,6 +134,22 @@ public sealed class StreamableHttpTransport
         }
     }
 
+    /// <summary>
+    /// Handles the OAuth authorization-server metadata route exposed next to the MCP endpoint.
+    /// </summary>
+    public async Task HandleOAuthAuthorizationServerMetadataAsync(HttpContext context)
+    {
+        var metadata = BuildOAuthAuthorizationServerMetadata();
+        if (metadata is null)
+        {
+            context.Response.StatusCode = StatusCodes.Status404NotFound;
+            return;
+        }
+
+        context.Response.ContentType = "application/json";
+        await context.Response.WriteAsync(JsonSerializer.Serialize(metadata, JsonOptions));
+    }
+
     private async Task HandleInitialize(HttpContext context, object? id)
     {
         // Create session
@@ -151,7 +167,8 @@ public sealed class StreamableHttpTransport
                 tools = new { listChanged = true },
                 prompts = new { listChanged = true },
                 resources = new { listChanged = true, read = true },
-                catalog = new { list = true, search = true }
+                catalog = new { list = true, search = true },
+                authorization = BuildAuthorizationCapability()
             },
             serverInfo = new
             {
@@ -514,6 +531,15 @@ public sealed class StreamableHttpTransport
                 "application/json")
         };
 
+        if (ShouldPublishAuthorizationMetadata())
+        {
+            resources.Add(new ResourceSummary(
+                AuthorizationMetadataUri,
+                "Authorization Metadata",
+                "OAuth metadata and required scopes for authenticated MCP clients.",
+                "application/json"));
+        }
+
         resources.AddRange(BuildDiscoveryPackDefinitions().Select(pack => new ResourceSummary(
             $"{DiscoveryPackUriPrefix}{pack.Name}",
             $"Discovery Pack: {pack.Title}",
@@ -550,12 +576,101 @@ public sealed class StreamableHttpTransport
             tools = new { listChanged = true },
             prompts = new { listChanged = true },
             resources = new { listChanged = true, read = true },
-            catalog = new { list = true, search = true }
+            catalog = new { list = true, search = true },
+            authorization = BuildAuthorizationCapability()
         },
         domainCount = catalog.DomainCount,
         toolCount = catalog.ToolCount,
         domains = catalog.Domains
     };
+
+    private object BuildAuthorizationCapability() => new
+    {
+        mode = _options.Authorization.Mode.ToString().ToLowerInvariant(),
+        requiredScopes = _options.Authorization.RequiredScopes,
+        oauth2 = new
+        {
+            metadata = ShouldPublishAuthorizationMetadata(),
+            resource = ShouldPublishAuthorizationMetadata() ? AuthorizationMetadataUri : null,
+            wellKnownPath = ShouldPublishAuthorizationMetadata() ? AuthorizationMetadataWellKnownPath : null
+        }
+    };
+
+    private bool ShouldPublishAuthorizationMetadata()
+    {
+        var metadata = _options.Authorization.Metadata;
+        return _options.Authorization.Mode != McpAuthMode.None ||
+               _options.Authorization.RequiredScopes.Count > 0 ||
+               !string.IsNullOrWhiteSpace(metadata.Issuer) ||
+               !string.IsNullOrWhiteSpace(metadata.AuthorizationEndpoint) ||
+               !string.IsNullOrWhiteSpace(metadata.TokenEndpoint) ||
+               !string.IsNullOrWhiteSpace(metadata.RegistrationEndpoint) ||
+               !string.IsNullOrWhiteSpace(metadata.JwksUri) ||
+               !string.IsNullOrWhiteSpace(metadata.ServiceDocumentation);
+    }
+
+    private object? BuildAuthorizationMetadataResource()
+    {
+        if (!ShouldPublishAuthorizationMetadata())
+        {
+            return null;
+        }
+
+        var metadata = _options.Authorization.Metadata;
+        return new
+        {
+            kind = "authorizationMetadata",
+            mode = _options.Authorization.Mode.ToString().ToLowerInvariant(),
+            requiredScopes = _options.Authorization.RequiredScopes,
+            resource = AuthorizationMetadataUri,
+            wellKnownPath = AuthorizationMetadataWellKnownPath,
+            oauth2 = new
+            {
+                issuer = metadata.Issuer,
+                authorizationEndpoint = metadata.AuthorizationEndpoint,
+                tokenEndpoint = metadata.TokenEndpoint,
+                registrationEndpoint = metadata.RegistrationEndpoint,
+                jwksUri = metadata.JwksUri,
+                serviceDocumentation = metadata.ServiceDocumentation,
+                responseTypesSupported = metadata.ResponseTypesSupported,
+                grantTypesSupported = metadata.GrantTypesSupported,
+                tokenEndpointAuthMethodsSupported = metadata.TokenEndpointAuthMethodsSupported,
+                scopesSupported = _options.Authorization.RequiredScopes
+            }
+        };
+    }
+
+    private IDictionary<string, object?>? BuildOAuthAuthorizationServerMetadata()
+    {
+        if (!ShouldPublishAuthorizationMetadata())
+        {
+            return null;
+        }
+
+        var metadata = _options.Authorization.Metadata;
+        var document = new Dictionary<string, object?>
+        {
+            ["scopes_supported"] = _options.Authorization.RequiredScopes,
+            ["response_types_supported"] = metadata.ResponseTypesSupported,
+            ["grant_types_supported"] = metadata.GrantTypesSupported,
+            ["token_endpoint_auth_methods_supported"] = metadata.TokenEndpointAuthMethodsSupported,
+            ["x_graphql_mcp"] = new Dictionary<string, object?>
+            {
+                ["mode"] = _options.Authorization.Mode.ToString().ToLowerInvariant(),
+                ["required_scopes"] = _options.Authorization.RequiredScopes,
+                ["resource_uri"] = AuthorizationMetadataUri,
+                ["well_known_path"] = AuthorizationMetadataWellKnownPath
+            }
+        };
+
+        AddIfNotBlank(document, "issuer", metadata.Issuer);
+        AddIfNotBlank(document, "authorization_endpoint", metadata.AuthorizationEndpoint);
+        AddIfNotBlank(document, "token_endpoint", metadata.TokenEndpoint);
+        AddIfNotBlank(document, "registration_endpoint", metadata.RegistrationEndpoint);
+        AddIfNotBlank(document, "jwks_uri", metadata.JwksUri);
+        AddIfNotBlank(document, "service_documentation", metadata.ServiceDocumentation);
+        return document;
+    }
 
     private object? BuildDomainResource(CatalogSummary catalog, string domainName)
     {
@@ -718,6 +833,11 @@ public sealed class StreamableHttpTransport
         if (string.Equals(uri, CatalogOverviewUri, StringComparison.OrdinalIgnoreCase))
         {
             return BuildCatalogOverviewResource(catalog);
+        }
+
+        if (string.Equals(uri, AuthorizationMetadataUri, StringComparison.OrdinalIgnoreCase))
+        {
+            return BuildAuthorizationMetadataResource();
         }
 
         if (uri.StartsWith(CatalogDomainUriPrefix, StringComparison.OrdinalIgnoreCase))
@@ -1214,6 +1334,14 @@ public sealed class StreamableHttpTransport
             .ToArray();
     }
 
+    private static void AddIfNotBlank(IDictionary<string, object?> values, string key, string? value)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            values[key] = value;
+        }
+    }
+
     private sealed record CatalogSearchRequest(
         string? Query,
         string? Domain,
@@ -1280,6 +1408,8 @@ public sealed class StreamableHttpTransport
         string Purpose);
 
     private const string CatalogOverviewUri = "graphql-mcp://catalog/overview";
+    private const string AuthorizationMetadataUri = "graphql-mcp://auth/metadata";
+    private const string AuthorizationMetadataWellKnownPath = ".well-known/oauth-authorization-server";
     private const string CatalogDomainUriPrefix = "graphql-mcp://catalog/domain/";
     private const string CatalogToolUriPrefix = "graphql-mcp://catalog/tool/";
     private const string DiscoveryPackUriPrefix = "graphql-mcp://packs/discovery/";

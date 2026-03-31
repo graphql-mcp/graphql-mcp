@@ -3,6 +3,7 @@ using System.Text.RegularExpressions;
 using GraphQL.MCP.Abstractions;
 using GraphQL.MCP.Abstractions.Canonical;
 using GraphQL.MCP.Abstractions.Policy;
+using GraphQL.MCP.Core.Discovery;
 using GraphQL.MCP.Core.Observability;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -57,7 +58,7 @@ public sealed class ToolPublisher
 
             var description = BuildDescription(op);
             var category = InferCategory(op);
-            var domain = InferDomain(op, category);
+            var domain = InferDomain(op);
             var tags = BuildTags(op, category, domain);
             var semanticHints = BuildSemanticHints(op, category, domain);
 
@@ -289,17 +290,7 @@ public sealed class ToolPublisher
         return op.OperationType == OperationType.Query ? "Query" : "Mutation";
     }
 
-    private static string InferDomain(CanonicalOperation op, string? category)
-    {
-        if (!string.IsNullOrWhiteSpace(category) &&
-            !category.Equals("Query", StringComparison.OrdinalIgnoreCase) &&
-            !category.Equals("Mutation", StringComparison.OrdinalIgnoreCase))
-        {
-            return NormalizeDomainName(category);
-        }
-
-        return NormalizeDomainName(op.GraphQLFieldName);
-    }
+    private static string InferDomain(CanonicalOperation op) => DomainInference.Infer(op);
 
     private static IReadOnlyList<string> BuildTags(CanonicalOperation op, string? category, string? domain)
     {

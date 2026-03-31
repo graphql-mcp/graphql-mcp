@@ -14,6 +14,7 @@ final class GraphQLMCPPolicyProfiles {
     GraphQLMCPProperties defaults = new GraphQLMCPProperties();
     GraphQLMCPConfig config = preset(properties.getPolicyPreset());
 
+    config = applyProfile(config, pack(properties.getPolicyPack()));
     config = applyProfile(config, properties.getPolicyProfile());
     config = applyExplicitOverrides(config, properties, defaults);
 
@@ -80,6 +81,65 @@ final class GraphQLMCPPolicyProfiles {
               120);
       default -> GraphQLMCPConfig.defaults();
     };
+  }
+
+  private static GraphQLMCPProperties.PolicyProfile pack(String packName) {
+    String pack = packName == null ? "none" : packName.trim().toLowerCase();
+
+    GraphQLMCPProperties.PolicyProfile profile = new GraphQLMCPProperties.PolicyProfile();
+    switch (pack) {
+      case "commerce" -> {
+        profile.setName("commerce");
+        profile.setIncludedDomains(
+            java.util.List.of(
+                "catalog",
+                "product",
+                "inventory",
+                "order",
+                "invoice",
+                "payment",
+                "customer",
+                "shipment"));
+        profile.setExcludedDomains(java.util.List.of("admin", "internal"));
+        profile.setMinDescriptionLength(12);
+        profile.setMaxArgumentComplexity(60);
+        profile.setMaxToolCount(60);
+        return profile;
+      }
+      case "content" -> {
+        profile.setName("content");
+        profile.setIncludedDomains(
+            java.util.List.of(
+                "article", "author", "content", "media", "asset", "category", "tag", "page"));
+        profile.setExcludedDomains(java.util.List.of("admin", "internal"));
+        profile.setMinDescriptionLength(8);
+        profile.setMaxArgumentComplexity(55);
+        profile.setMaxToolCount(75);
+        return profile;
+      }
+      case "operations" -> {
+        profile.setName("operations");
+        profile.setIncludedDomains(
+            java.util.List.of(
+                "service",
+                "incident",
+                "alert",
+                "deployment",
+                "ticket",
+                "runbook",
+                "environment",
+                "metric"));
+        profile.setExcludedDomains(java.util.List.of("admin", "internal"));
+        profile.setRequireDescriptions(true);
+        profile.setMinDescriptionLength(12);
+        profile.setMaxArgumentComplexity(45);
+        profile.setMaxToolCount(40);
+        return profile;
+      }
+      default -> {
+        return null;
+      }
+    }
   }
 
   private static GraphQLMCPConfig applyProfile(

@@ -147,6 +147,85 @@ class ToolPublisherTest {
   }
 
   @Test
+  void infers_domain_from_generic_wrapper_members() {
+    GraphQLObjectType searchResultType =
+        GraphQLObjectType.newObject()
+            .name("SearchResult")
+            .field(field -> field.name("articles").type(Scalars.GraphQLString))
+            .field(field -> field.name("totalCount").type(Scalars.GraphQLInt))
+            .build();
+    GraphQLObjectType queryType =
+        GraphQLObjectType.newObject()
+            .name("Query")
+            .field(
+                field ->
+                    field
+                        .name("search")
+                        .description("Search indexed content")
+                        .type(searchResultType))
+            .build();
+    GraphQLSchema schema = GraphQLSchema.newSchema().query(queryType).build();
+    GraphQLSchemaIntrospector introspector = new GraphQLSchemaIntrospector();
+    GraphQLToMCPToolMapper mapper =
+        new GraphQLToMCPToolMapper(
+            new GraphQLToMCPToolMapper.GraphQLMCPConfig(
+                null,
+                GraphQLToMCPToolMapper.NamingPolicy.RAW,
+                false,
+                Set.of(),
+                Set.of(),
+                Set.of(),
+                3,
+                10,
+                false,
+                0,
+                25,
+                75));
+    ToolPublisher publisher = new ToolPublisher(mapper, mapperConfig());
+
+    ToolDescriptor tool = publisher.publish(introspector.introspect(schema), schema).get(0);
+
+    assertEquals("article", tool.domainGroup());
+  }
+
+  @Test
+  void infers_domain_from_description_when_field_name_is_generic() {
+    GraphQLObjectType queryType =
+        GraphQLObjectType.newObject()
+            .name("Query")
+            .field(
+                field ->
+                    field
+                        .name("search")
+                        .description("Search articles by title")
+                        .type(Scalars.GraphQLString))
+            .build();
+    GraphQLSchema schema = GraphQLSchema.newSchema().query(queryType).build();
+    GraphQLSchemaIntrospector introspector = new GraphQLSchemaIntrospector();
+    GraphQLToMCPToolMapper mapper =
+        new GraphQLToMCPToolMapper(
+            new GraphQLToMCPToolMapper.GraphQLMCPConfig(
+                null,
+                GraphQLToMCPToolMapper.NamingPolicy.RAW,
+                false,
+                Set.of(),
+                Set.of(),
+                Set.of(),
+                3,
+                10,
+                false,
+                0,
+                25,
+                75));
+    ToolPublisher publisher = new ToolPublisher(mapper, mapperConfig());
+
+    ToolDescriptor tool = publisher.publish(introspector.introspect(schema), schema).get(0);
+
+    assertEquals("article", tool.domainGroup());
+    assertTrue(tool.semanticHints().keywords().contains("article"));
+  }
+
+  @Test
   void applies_domain_allowlist_before_publishing_tools() {
     GraphQLSchema schema = TestSchemas.createSchema();
     GraphQLSchemaIntrospector introspector = new GraphQLSchemaIntrospector();

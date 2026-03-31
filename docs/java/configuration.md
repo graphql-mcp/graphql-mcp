@@ -11,6 +11,7 @@ graphql:
   mcp:
     enabled: true
     policy-preset: curated
+    policy-pack: commerce
     policy-profile:
       name: commerce-api
       included-domains:
@@ -36,6 +37,12 @@ graphql:
     transport: streamable-http
     authorization:
       mode: passthrough
+      required-scopes:
+        - orders.read
+      metadata:
+        issuer: https://auth.example.com
+        authorization-endpoint: https://auth.example.com/authorize
+        token-endpoint: https://auth.example.com/token
 ```
 
 ## Supported Properties
@@ -46,6 +53,7 @@ These properties are currently bound by [GraphQLMCPProperties.java](/C:/Users/in
 |--------|------|---------|-------------|
 | `graphql.mcp.enabled` | `boolean` | `true` | Turns graphql-mcp auto-configuration on or off |
 | `graphql.mcp.policy-preset` | `string` | `balanced` | Built-in policy baseline: `balanced`, `curated`, `strict`, `exploratory` |
+| `graphql.mcp.policy-pack` | `string` | `none` | Shared profile pack: `commerce`, `content`, `operations` |
 | `graphql.mcp.policy-profile.*` | object | empty | Reusable override layer applied on top of the selected preset |
 | `graphql.mcp.tool-prefix` | `string` | `null` | Prefix for published MCP tool names |
 | `graphql.mcp.naming-policy` | `string` | `verb-noun` | Naming style for generated tools |
@@ -61,6 +69,8 @@ These properties are currently bound by [GraphQLMCPProperties.java](/C:/Users/in
 | `graphql.mcp.max-argument-complexity` | `int` | `75` | Max weighted input complexity allowed for a published tool |
 | `graphql.mcp.transport` | `string` | `streamable-http` | Transport mode; only Streamable HTTP is currently implemented |
 | `graphql.mcp.authorization.mode` | `string` | `none` | Authorization mode; `passthrough` forwards the incoming `Authorization` header |
+| `graphql.mcp.authorization.required-scopes` | `list<string>` | `[]` | Scopes advertised to authenticated MCP clients |
+| `graphql.mcp.authorization.metadata.*` | object | defaults | Optional OAuth metadata surfaced through MCP resources and the well-known metadata route |
 
 ## Endpoint
 
@@ -117,14 +127,14 @@ Requests without a valid session header are rejected.
 Spring configuration resolves policy in this order:
 
 1. `graphql.mcp.policy-preset`
-2. `graphql.mcp.policy-profile.*`
-3. top-level `graphql.mcp.*` overrides that differ from the default baseline
+2. optional `graphql.mcp.policy-pack`
+3. `graphql.mcp.policy-profile.*`
+4. top-level `graphql.mcp.*` overrides that differ from the default baseline
 
 This lets teams reuse a common preset, define a small profile for domain-specific curation, and still override individual limits or naming behavior in an application-local `application.yml`. Use the profile block when you need a reusable override pack, especially for values that match the normal defaults.
 
 ## What Is Not There Yet
 
-- OAuth 2.1 metadata support
 - stdio transport
 - Netflix DGS adapter
 - deeper semantic ranking beyond the current lightweight hint model

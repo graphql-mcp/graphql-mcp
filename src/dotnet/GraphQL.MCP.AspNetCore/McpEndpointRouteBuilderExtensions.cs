@@ -21,8 +21,16 @@ public static class McpEndpointRouteBuilderExtensions
         string path = "/mcp")
     {
         var transport = endpoints.ServiceProvider.GetRequiredService<StreamableHttpTransport>();
+        var normalizedPath = path.EndsWith("/", StringComparison.Ordinal) && path.Length > 1
+            ? path.TrimEnd('/')
+            : path;
 
-        return endpoints.MapPost(path, async context =>
+        endpoints.MapGet($"{normalizedPath}/.well-known/oauth-authorization-server", async context =>
+        {
+            await transport.HandleOAuthAuthorizationServerMetadataAsync(context);
+        });
+
+        return endpoints.MapPost(normalizedPath, async context =>
         {
             await transport.HandleRequestAsync(context);
         });

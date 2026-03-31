@@ -4,6 +4,7 @@ using System.Text.RegularExpressions;
 using GraphQL.MCP.Abstractions;
 using GraphQL.MCP.Abstractions.Canonical;
 using GraphQL.MCP.Abstractions.Policy;
+using GraphQL.MCP.Core.Discovery;
 using GraphQL.MCP.Core.Observability;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -120,7 +121,7 @@ public sealed partial class PolicyEngine : IMcpPolicy
             return false;
         }
 
-        var domain = InferDomain(operation);
+        var domain = DomainInference.Infer(operation);
         if (_options.IncludedDomains.Count > 0 &&
             !_options.IncludedDomains.Contains(domain, StringComparer.OrdinalIgnoreCase))
         {
@@ -303,89 +304,10 @@ public sealed partial class PolicyEngine : IMcpPolicy
         return type.OfType is null ? baseCost : baseCost + CalculateTypeComplexity(type.OfType);
     }
 
-    private static string InferDomain(CanonicalOperation operation)
-    {
-        var tokens = SplitIdentifier(operation.GraphQLFieldName)
-            .Where(token => !ActionPrefixes.Contains(token))
-            .Where(token => !StopWords.Contains(token))
-            .Where(token => !StructuralSuffixes.Contains(token))
-            .Where(token => !GenericDomainTokens.Contains(token))
-            .ToList();
-
-        if (tokens.Count == 0)
-        {
-            return "general";
-        }
-
-        return Singularize(tokens[^1]);
-    }
-
-    private static List<string> SplitIdentifier(string value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return [];
-        }
-
-        var normalized = IdentifierBoundaryRegex().Replace(value, "$1_$2");
-        return normalized
-            .Split(['_', '-', '.', ' '], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(token => token.ToLowerInvariant())
-            .ToList();
-    }
-
-    private static string Singularize(string token)
-    {
-        if (token.EndsWith("ies", StringComparison.OrdinalIgnoreCase) && token.Length > 3)
-        {
-            return token[..^3] + "y";
-        }
-
-        if (token.EndsWith("ses", StringComparison.OrdinalIgnoreCase) && token.Length > 3)
-        {
-            return token[..^2];
-        }
-
-        if (token.EndsWith("s", StringComparison.OrdinalIgnoreCase) &&
-            !token.EndsWith("ss", StringComparison.OrdinalIgnoreCase) &&
-            token.Length > 1)
-        {
-            return token[..^1];
-        }
-
-        return token;
-    }
-
-    private static readonly HashSet<string> ActionPrefixes =
-    [
-        "get", "list", "fetch", "find", "search", "create", "update", "delete", "remove", "add",
-        "set", "count", "read", "lookup", "show", "load", "modify", "patch", "replace", "archive",
-        "upsert", "view", "new", "return"
-    ];
-
-    private static readonly HashSet<string> StopWords =
-    [
-        "by", "for", "from", "with", "within", "in", "of", "on", "at", "via", "using"
-    ];
-
-    private static readonly HashSet<string> StructuralSuffixes =
-    [
-        "connection", "connections", "edge", "edges", "node", "nodes", "payload", "payloads",
-        "response", "responses", "result", "results", "list", "lists", "page", "pages", "data",
-        "item", "items", "collection", "collections", "viewer", "viewers"
-    ];
-
-    private static readonly HashSet<string> GenericDomainTokens =
-    [
-        "api", "graphql", "service", "services", "endpoint", "endpoints", "core"
-    ];
-
     [GeneratedRegex(@"[^a-zA-Z0-9_]")]
     private static partial Regex SanitizeRegex();
 
     [GeneratedRegex(@"_{2,}")]
     private static partial Regex CollapseUnderscoresRegex();
 
-    [GeneratedRegex("([a-z0-9])([A-Z])")]
-    private static partial Regex IdentifierBoundaryRegex();
 }

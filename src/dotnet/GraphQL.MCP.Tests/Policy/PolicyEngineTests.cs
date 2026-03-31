@@ -86,6 +86,18 @@ public class PolicyEngineTests
     }
 
     [Fact]
+    public void Should_apply_shared_policy_pack_domains()
+    {
+        var sut = CreateSut(new McpOptions
+        {
+            PolicyPack = McpPolicyPack.Commerce
+        });
+
+        sut.ShouldIncludeOperation(CreateOperation("listOrders", returnTypeName: "Order")).Should().BeTrue();
+        sut.ShouldIncludeOperation(CreateOperation("listArticles", returnTypeName: "Article")).Should().BeFalse();
+    }
+
+    [Fact]
     public void Should_apply_explicit_overrides_after_policy_preset()
     {
         var sut = CreateSut(new McpOptions
@@ -421,6 +433,39 @@ public class PolicyEngineTests
 
         sut.ShouldIncludeOperation(CreateOperation("listUsers")).Should().BeFalse();
         sut.ShouldIncludeOperation(CreateOperation("listOrders")).Should().BeTrue();
+    }
+
+    [Fact]
+    public void Should_use_generic_wrapper_return_fields_for_domain_curation()
+    {
+        var sut = CreateSut(new McpOptions { IncludedDomains = ["article"] });
+        var op = new CanonicalOperation
+        {
+            Name = "search",
+            GraphQLFieldName = "search",
+            Description = "Search indexed content",
+            OperationType = OperationType.Query,
+            ReturnType = new CanonicalType
+            {
+                Name = "SearchResult",
+                Kind = TypeKind.Object,
+                Fields =
+                [
+                    new CanonicalField
+                    {
+                        Name = "articles",
+                        Type = new CanonicalType { Name = "String", Kind = TypeKind.Scalar }
+                    },
+                    new CanonicalField
+                    {
+                        Name = "totalCount",
+                        Type = new CanonicalType { Name = "Int", Kind = TypeKind.Scalar }
+                    }
+                ]
+            }
+        };
+
+        sut.ShouldIncludeOperation(op).Should().BeTrue();
     }
 
     // --- Return type unwrapping tests ---

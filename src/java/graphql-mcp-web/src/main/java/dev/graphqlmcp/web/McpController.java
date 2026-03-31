@@ -104,6 +104,18 @@ public class McpController {
     return ResponseEntity.ok(buildCatalogResult());
   }
 
+  @GetMapping(
+      path = "/.well-known/oauth-authorization-server",
+      produces = MediaType.APPLICATION_JSON_VALUE)
+  public ResponseEntity<ObjectNode> handleOAuthAuthorizationServerMetadata() {
+    ObjectNode metadata = buildOAuthAuthorizationServerMetadata();
+    if (metadata == null) {
+      return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+    }
+
+    return ResponseEntity.ok(metadata);
+  }
+
   private ResponseEntity<ObjectNode> handleInitialize(JsonNode id) {
     String newSessionId = UUID.randomUUID().toString().replace("-", "");
     sessions.put(newSessionId, true);
@@ -129,6 +141,23 @@ public class McpController {
     catalogCap.put("search", initResult.capabilities().catalog().search());
     catalogCap.put("grouping", initResult.capabilities().catalog().grouping());
     capabilities.set("catalog", catalogCap);
+    ObjectNode authorizationCap = MAPPER.createObjectNode();
+    authorizationCap.put("mode", initResult.capabilities().authorization().mode());
+    authorizationCap.set(
+        "requiredScopes",
+        MAPPER.valueToTree(initResult.capabilities().authorization().requiredScopes()));
+    ObjectNode oauthCap = MAPPER.createObjectNode();
+    oauthCap.put("metadata", initResult.capabilities().authorization().oauth2().metadata());
+    if (initResult.capabilities().authorization().oauth2().metadata()) {
+      oauthCap.put("resource", initResult.capabilities().authorization().oauth2().resource());
+      oauthCap.put(
+          "wellKnownPath", initResult.capabilities().authorization().oauth2().wellKnownPath());
+    } else {
+      oauthCap.putNull("resource");
+      oauthCap.putNull("wellKnownPath");
+    }
+    authorizationCap.set("oauth2", oauthCap);
+    capabilities.set("authorization", authorizationCap);
     result.set("capabilities", capabilities);
 
     ObjectNode serverInfo = MAPPER.createObjectNode();
@@ -292,6 +321,23 @@ public class McpController {
     catalogCap.put("search", initResult.capabilities().catalog().search());
     catalogCap.put("grouping", initResult.capabilities().catalog().grouping());
     capabilities.set("catalog", catalogCap);
+    ObjectNode authorizationCap = MAPPER.createObjectNode();
+    authorizationCap.put("mode", initResult.capabilities().authorization().mode());
+    authorizationCap.set(
+        "requiredScopes",
+        MAPPER.valueToTree(initResult.capabilities().authorization().requiredScopes()));
+    ObjectNode oauthCap = MAPPER.createObjectNode();
+    oauthCap.put("metadata", initResult.capabilities().authorization().oauth2().metadata());
+    if (initResult.capabilities().authorization().oauth2().metadata()) {
+      oauthCap.put("resource", initResult.capabilities().authorization().oauth2().resource());
+      oauthCap.put(
+          "wellKnownPath", initResult.capabilities().authorization().oauth2().wellKnownPath());
+    } else {
+      oauthCap.putNull("resource");
+      oauthCap.putNull("wellKnownPath");
+    }
+    authorizationCap.set("oauth2", oauthCap);
+    capabilities.set("authorization", authorizationCap);
     result.set("capabilities", capabilities);
 
     ArrayNode domains = MAPPER.createArrayNode();
@@ -624,6 +670,16 @@ public class McpController {
     overview.put("mimeType", "application/json");
     resources.add(overview);
 
+    if (shouldPublishAuthorizationMetadata()) {
+      ObjectNode authMetadata = MAPPER.createObjectNode();
+      authMetadata.put("uri", AUTHORIZATION_METADATA_URI);
+      authMetadata.put("name", "Authorization Metadata");
+      authMetadata.put(
+          "description", "OAuth metadata and required scopes for authenticated MCP clients.");
+      authMetadata.put("mimeType", "application/json");
+      resources.add(authMetadata);
+    }
+
     for (ResourcePackDefinition pack : buildDiscoveryPacks()) {
       ObjectNode packResource = MAPPER.createObjectNode();
       packResource.put("uri", DISCOVERY_PACK_URI_PREFIX + pack.name());
@@ -663,6 +719,12 @@ public class McpController {
     String text;
     if (CATALOG_OVERVIEW_URI.equalsIgnoreCase(uri)) {
       text = buildCatalogResult().toString();
+    } else if (AUTHORIZATION_METADATA_URI.equalsIgnoreCase(uri)) {
+      ObjectNode authMetadata = buildAuthorizationMetadataResource();
+      if (authMetadata == null) {
+        return null;
+      }
+      text = authMetadata.toString();
     } else if (uri.regionMatches(
         true, 0, CATALOG_DOMAIN_URI_PREFIX, 0, CATALOG_DOMAIN_URI_PREFIX.length())) {
       String domainName = uri.substring(CATALOG_DOMAIN_URI_PREFIX.length());
@@ -700,6 +762,74 @@ public class McpController {
     contents.add(content);
     result.set("contents", contents);
     return result;
+  }
+
+  private boolean shouldPublishAuthorizationMetadata() {
+    GraphQLMCPServer.AuthorizationMetadata authorizationMetadata = server.authorizationMetadata();
+    return authorizationMetadata.enabled();
+  }
+
+  private ObjectNode buildAuthorizationMetadataResource() {
+    if (!shouldPublishAuthorizationMetadata()) {
+      return null;
+    }
+
+    GraphQLMCPServer.AuthorizationMetadata authorizationMetadata = server.authorizationMetadata();
+    GraphQLMCPServer.OAuthMetadata metadata = authorizationMetadata.oauthMetadata();
+
+    ObjectNode resource = MAPPER.createObjectNode();
+    resource.put("kind", "authorizationMetadata");
+    resource.put("mode", authorizationMetadata.mode());
+    resource.set("requiredScopes", MAPPER.valueToTree(authorizationMetadata.requiredScopes()));
+    resource.put("resource", AUTHORIZATION_METADATA_URI);
+    resource.put("wellKnownPath", AUTHORIZATION_WELL_KNOWN_PATH);
+
+    ObjectNode oauth2 = MAPPER.createObjectNode();
+    putIfNotBlank(oauth2, "issuer", metadata.issuer());
+    putIfNotBlank(oauth2, "authorizationEndpoint", metadata.authorizationEndpoint());
+    putIfNotBlank(oauth2, "tokenEndpoint", metadata.tokenEndpoint());
+    putIfNotBlank(oauth2, "registrationEndpoint", metadata.registrationEndpoint());
+    putIfNotBlank(oauth2, "jwksUri", metadata.jwksUri());
+    putIfNotBlank(oauth2, "serviceDocumentation", metadata.serviceDocumentation());
+    oauth2.set("scopesSupported", MAPPER.valueToTree(authorizationMetadata.requiredScopes()));
+    oauth2.set("responseTypesSupported", MAPPER.valueToTree(metadata.responseTypesSupported()));
+    oauth2.set("grantTypesSupported", MAPPER.valueToTree(metadata.grantTypesSupported()));
+    oauth2.set(
+        "tokenEndpointAuthMethodsSupported",
+        MAPPER.valueToTree(metadata.tokenEndpointAuthMethodsSupported()));
+    resource.set("oauth2", oauth2);
+    return resource;
+  }
+
+  private ObjectNode buildOAuthAuthorizationServerMetadata() {
+    if (!shouldPublishAuthorizationMetadata()) {
+      return null;
+    }
+
+    GraphQLMCPServer.AuthorizationMetadata authorizationMetadata = server.authorizationMetadata();
+    GraphQLMCPServer.OAuthMetadata metadata = authorizationMetadata.oauthMetadata();
+
+    ObjectNode document = MAPPER.createObjectNode();
+    putIfNotBlank(document, "issuer", metadata.issuer());
+    putIfNotBlank(document, "authorization_endpoint", metadata.authorizationEndpoint());
+    putIfNotBlank(document, "token_endpoint", metadata.tokenEndpoint());
+    putIfNotBlank(document, "registration_endpoint", metadata.registrationEndpoint());
+    putIfNotBlank(document, "jwks_uri", metadata.jwksUri());
+    putIfNotBlank(document, "service_documentation", metadata.serviceDocumentation());
+    document.set("scopes_supported", MAPPER.valueToTree(authorizationMetadata.requiredScopes()));
+    document.set("response_types_supported", MAPPER.valueToTree(metadata.responseTypesSupported()));
+    document.set("grant_types_supported", MAPPER.valueToTree(metadata.grantTypesSupported()));
+    document.set(
+        "token_endpoint_auth_methods_supported",
+        MAPPER.valueToTree(metadata.tokenEndpointAuthMethodsSupported()));
+
+    ObjectNode extension = MAPPER.createObjectNode();
+    extension.put("mode", authorizationMetadata.mode());
+    extension.set("required_scopes", MAPPER.valueToTree(authorizationMetadata.requiredScopes()));
+    extension.put("resource_uri", AUTHORIZATION_METADATA_URI);
+    extension.put("well_known_path", AUTHORIZATION_WELL_KNOWN_PATH);
+    document.set("x_graphql_mcp", extension);
+    return document;
   }
 
   private ObjectNode buildDomainResource(String domainName) {
@@ -1173,6 +1303,12 @@ public class McpController {
     return builder.toString();
   }
 
+  private void putIfNotBlank(ObjectNode node, String property, String value) {
+    if (value != null && !value.isBlank()) {
+      node.put(property, value);
+    }
+  }
+
   private String optionalText(JsonNode node, String propertyName) {
     if (node == null || !node.has(propertyName) || node.path(propertyName).isNull()) {
       return null;
@@ -1307,6 +1443,9 @@ public class McpController {
   }
 
   private static final String CATALOG_OVERVIEW_URI = "graphql-mcp://catalog/overview";
+  private static final String AUTHORIZATION_METADATA_URI = "graphql-mcp://auth/metadata";
+  private static final String AUTHORIZATION_WELL_KNOWN_PATH =
+      ".well-known/oauth-authorization-server";
   private static final String CATALOG_DOMAIN_URI_PREFIX = "graphql-mcp://catalog/domain/";
   private static final String CATALOG_TOOL_URI_PREFIX = "graphql-mcp://catalog/tool/";
   private static final String DISCOVERY_PACK_URI_PREFIX = "graphql-mcp://packs/discovery/";
