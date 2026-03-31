@@ -57,4 +57,24 @@ class GraphQLMCPAutoConfigurationTest {
           assertEquals("api_get_book", tools.get(0).name());
         });
   }
+
+  @Test
+  void binds_policy_preset_and_profile_properties() {
+    new ApplicationContextRunner()
+        .withConfiguration(AutoConfigurations.of(GraphQLMCPAutoConfiguration.class))
+        .withBean(GraphQLSchema.class, TestSchemas::createSchema)
+        .withPropertyValues(
+            "graphql.mcp.policy-preset=strict",
+            "graphql.mcp.policy-profile.require-descriptions=false",
+            "graphql.mcp.policy-profile.min-description-length=0",
+            "graphql.mcp.policy-profile.included-domains[0]=book")
+        .run(
+            context -> {
+              GraphQLMCPProperties properties = context.getBean(GraphQLMCPProperties.class);
+              assertEquals("strict", properties.getPolicyPreset());
+              assertFalse(properties.getPolicyProfile().getRequireDescriptions());
+              assertEquals(0, properties.getPolicyProfile().getMinDescriptionLength());
+              assertEquals(1, properties.getPolicyProfile().getIncludedDomains().size());
+            });
+  }
 }

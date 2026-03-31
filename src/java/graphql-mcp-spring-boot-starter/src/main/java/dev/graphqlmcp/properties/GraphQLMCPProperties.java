@@ -11,6 +11,7 @@ public class GraphQLMCPProperties {
   private boolean enabled = true;
   private String toolPrefix;
   private String namingPolicy = "verb-noun";
+  private String policyPreset = "balanced";
   private boolean allowMutations = false;
   private List<String> excludedFields = new ArrayList<>();
   private boolean requireDescriptions = false;
@@ -23,6 +24,7 @@ public class GraphQLMCPProperties {
   private List<String> excludedDomains = new ArrayList<>();
   private String transport = "streamable-http";
   private Authorization authorization = new Authorization();
+  private PolicyProfile policyProfile = new PolicyProfile();
 
   // --- Getters & Setters ---
 
@@ -48,6 +50,14 @@ public class GraphQLMCPProperties {
 
   public void setNamingPolicy(String namingPolicy) {
     this.namingPolicy = namingPolicy;
+  }
+
+  public String getPolicyPreset() {
+    return policyPreset;
+  }
+
+  public void setPolicyPreset(String policyPreset) {
+    this.policyPreset = policyPreset;
   }
 
   public boolean isAllowMutations() {
@@ -146,6 +156,14 @@ public class GraphQLMCPProperties {
     this.authorization = authorization;
   }
 
+  public PolicyProfile getPolicyProfile() {
+    return policyProfile;
+  }
+
+  public void setPolicyProfile(PolicyProfile policyProfile) {
+    this.policyProfile = policyProfile;
+  }
+
   public static class Authorization {
     private String mode = "none";
 
@@ -155,6 +173,117 @@ public class GraphQLMCPProperties {
 
     public void setMode(String mode) {
       this.mode = mode;
+    }
+  }
+
+  public static class PolicyProfile {
+    private String name;
+    private String namingPolicy;
+    private Boolean allowMutations;
+    private Boolean requireDescriptions;
+    private Integer minDescriptionLength;
+    private Integer maxOutputDepth;
+    private Integer maxToolCount;
+    private Integer maxArgumentCount;
+    private Integer maxArgumentComplexity;
+    private List<String> excludedFields = new ArrayList<>();
+    private List<String> includedDomains = new ArrayList<>();
+    private List<String> excludedDomains = new ArrayList<>();
+
+    public String getName() {
+      return name;
+    }
+
+    public void setName(String name) {
+      this.name = name;
+    }
+
+    public String getNamingPolicy() {
+      return namingPolicy;
+    }
+
+    public void setNamingPolicy(String namingPolicy) {
+      this.namingPolicy = namingPolicy;
+    }
+
+    public Boolean getAllowMutations() {
+      return allowMutations;
+    }
+
+    public void setAllowMutations(Boolean allowMutations) {
+      this.allowMutations = allowMutations;
+    }
+
+    public Boolean getRequireDescriptions() {
+      return requireDescriptions;
+    }
+
+    public void setRequireDescriptions(Boolean requireDescriptions) {
+      this.requireDescriptions = requireDescriptions;
+    }
+
+    public Integer getMinDescriptionLength() {
+      return minDescriptionLength;
+    }
+
+    public void setMinDescriptionLength(Integer minDescriptionLength) {
+      this.minDescriptionLength = minDescriptionLength;
+    }
+
+    public Integer getMaxOutputDepth() {
+      return maxOutputDepth;
+    }
+
+    public void setMaxOutputDepth(Integer maxOutputDepth) {
+      this.maxOutputDepth = maxOutputDepth;
+    }
+
+    public Integer getMaxToolCount() {
+      return maxToolCount;
+    }
+
+    public void setMaxToolCount(Integer maxToolCount) {
+      this.maxToolCount = maxToolCount;
+    }
+
+    public Integer getMaxArgumentCount() {
+      return maxArgumentCount;
+    }
+
+    public void setMaxArgumentCount(Integer maxArgumentCount) {
+      this.maxArgumentCount = maxArgumentCount;
+    }
+
+    public Integer getMaxArgumentComplexity() {
+      return maxArgumentComplexity;
+    }
+
+    public void setMaxArgumentComplexity(Integer maxArgumentComplexity) {
+      this.maxArgumentComplexity = maxArgumentComplexity;
+    }
+
+    public List<String> getExcludedFields() {
+      return excludedFields;
+    }
+
+    public void setExcludedFields(List<String> excludedFields) {
+      this.excludedFields = excludedFields;
+    }
+
+    public List<String> getIncludedDomains() {
+      return includedDomains;
+    }
+
+    public void setIncludedDomains(List<String> includedDomains) {
+      this.includedDomains = includedDomains;
+    }
+
+    public List<String> getExcludedDomains() {
+      return excludedDomains;
+    }
+
+    public void setExcludedDomains(List<String> excludedDomains) {
+      this.excludedDomains = excludedDomains;
     }
   }
 }

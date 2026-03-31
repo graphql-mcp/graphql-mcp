@@ -4,14 +4,12 @@ import dev.graphqlmcp.execution.GraphQLExecutor;
 import dev.graphqlmcp.execution.ToolExecutor;
 import dev.graphqlmcp.introspection.GraphQLSchemaIntrospector;
 import dev.graphqlmcp.mapping.GraphQLToMCPToolMapper;
-import dev.graphqlmcp.mapping.GraphQLToMCPToolMapper.GraphQLMCPConfig;
 import dev.graphqlmcp.properties.GraphQLMCPProperties;
 import dev.graphqlmcp.publishing.ToolDescriptor;
 import dev.graphqlmcp.publishing.ToolPublisher;
 import dev.graphqlmcp.server.GraphQLMCPServer;
 import graphql.schema.GraphQLSchema;
 import java.util.List;
-import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -77,26 +75,7 @@ public class GraphQLMCPAutoConfiguration {
     return new ToolExecutor(executor, tools);
   }
 
-  private GraphQLMCPConfig buildConfig(GraphQLMCPProperties properties) {
-    return new GraphQLMCPConfig(
-        properties.getToolPrefix(),
-        mapNamingPolicy(properties.getNamingPolicy()),
-        properties.isAllowMutations(),
-        Set.copyOf(properties.getExcludedFields()),
-        Set.copyOf(properties.getIncludedDomains()),
-        Set.copyOf(properties.getExcludedDomains()),
-        properties.getMaxOutputDepth(),
-        properties.getMaxToolCount(),
-        properties.isRequireDescriptions(),
-        properties.getMinDescriptionLength(),
-        properties.getMaxArgumentCount(),
-        properties.getMaxArgumentComplexity());
-  }
-
-  private GraphQLToMCPToolMapper.NamingPolicy mapNamingPolicy(String policy) {
-    if ("raw".equalsIgnoreCase(policy)) {
-      return GraphQLToMCPToolMapper.NamingPolicy.RAW;
-    }
-    return GraphQLToMCPToolMapper.NamingPolicy.VERB_NOUN;
+  private GraphQLToMCPToolMapper.GraphQLMCPConfig buildConfig(GraphQLMCPProperties properties) {
+    return GraphQLMCPPolicyProfiles.resolve(properties);
   }
 }

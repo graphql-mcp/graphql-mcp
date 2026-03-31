@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - MCP prompts via `prompts/list` and `prompts/get` for exploration and tool-selection workflows
 - advanced prompt/resource packs including workflow planning, candidate comparison, safe-call preparation, tool summaries, and reusable discovery playbooks
 - advanced policy controls including domain curation, minimum description length, and weighted argument complexity limits
+- reusable policy presets and profiles with built-in balanced, curated, strict, and exploratory baselines
 - dedicated docs for policies, adapters, and roadmap
 ### Fixed
 - ISchema DI resolution crash - Hot Chocolate adapter now uses `IRequestExecutorResolver` instead of `ISchema` (not registered in HC DI container)

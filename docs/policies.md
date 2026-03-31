@@ -2,6 +2,17 @@
 
 graphql-mcp keeps generated MCP tools understandable and safe by applying policy before publishing.
 
+## Built-In Presets
+
+graphql-mcp now ships reusable presets for common curation modes:
+
+- `Balanced`: the default general-purpose baseline
+- `Curated`: stronger description and complexity expectations for curated catalogs
+- `Strict`: smaller, more heavily documented tool surfaces for external-facing use
+- `Exploratory`: broader discovery limits for internal exploration and agent-assisted investigation
+
+Both runtimes also support a reusable profile override layer on top of a preset, so teams can define a preset once and then apply API-specific domain, description, and complexity overrides.
+
 ## Current Policy Surface
 
 ### Publication controls
@@ -22,6 +33,8 @@ graphql-mcp keeps generated MCP tools understandable and safe by applying policy
 
 - `ToolPrefix`: namespace tool names per API or tenant
 - `NamingPolicy`: `VerbNoun`, `Raw`, or `PrefixedRaw` on .NET; `verb-noun` or `raw` on Java
+- `PolicyPreset` / `graphql.mcp.policy-preset`: choose a built-in preset baseline
+- `PolicyProfile` / `graphql.mcp.policy-profile.*`: reusable per-API overrides layered on top of a preset
 
 ### Query shaping
 
@@ -37,13 +50,15 @@ graphql-mcp keeps generated MCP tools understandable and safe by applying policy
 
 Current releases attach lightweight discovery metadata to published tools:
 
+- domain
 - category
 - tags
+- semantic hints
 
-Today this metadata is intentionally simple. It improves grouping and future discovery work without overcommitting to a custom protocol shape.
+This metadata is intentionally lightweight enough to stay portable across runtimes while still helping clients group, search, and select tools safely.
 
 ## Still Planned
 
 - richer semantic hints beyond the current lightweight hint model
 - deeper domain inference for very large or ambiguous schemas
-- more opinionated curation presets on top of the raw policy knobs
+- higher-level shared profile packs for common schema shapes and industries

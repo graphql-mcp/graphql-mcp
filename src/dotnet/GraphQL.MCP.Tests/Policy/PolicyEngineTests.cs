@@ -59,6 +59,66 @@ public class PolicyEngineTests
     }
 
     [Fact]
+    public void Should_apply_strict_policy_preset()
+    {
+        var sut = CreateSut(new McpOptions { PolicyPreset = McpPolicyPreset.Strict });
+        var op = CreateOperation("users");
+
+        sut.ShouldIncludeOperation(op).Should().BeFalse();
+    }
+
+    [Fact]
+    public void Should_apply_policy_profile_overrides_on_top_of_preset()
+    {
+        var sut = CreateSut(new McpOptions
+        {
+            PolicyPreset = McpPolicyPreset.Strict,
+            PolicyProfile = new McpPolicyProfile
+            {
+                RequireDescriptionsForPublishedTools = false,
+                MinDescriptionLength = 0,
+                IncludedDomains = ["book"]
+            }
+        });
+
+        sut.ShouldIncludeOperation(CreateOperation("listBooks")).Should().BeTrue();
+        sut.ShouldIncludeOperation(CreateOperation("listOrders")).Should().BeFalse();
+    }
+
+    [Fact]
+    public void Should_apply_explicit_overrides_after_policy_preset()
+    {
+        var sut = CreateSut(new McpOptions
+        {
+            PolicyPreset = McpPolicyPreset.Exploratory,
+            MaxArgumentCount = 1
+        });
+        var op = new CanonicalOperation
+        {
+            Name = "searchUsers",
+            GraphQLFieldName = "searchUsers",
+            Description = "Search users",
+            OperationType = OperationType.Query,
+            ReturnType = new CanonicalType { Name = "String", Kind = TypeKind.Scalar },
+            Arguments =
+            [
+                new CanonicalArgument
+                {
+                    Name = "name",
+                    Type = new CanonicalType { Name = "String", Kind = TypeKind.Scalar }
+                },
+                new CanonicalArgument
+                {
+                    Name = "email",
+                    Type = new CanonicalType { Name = "String", Kind = TypeKind.Scalar }
+                }
+            ]
+        };
+
+        sut.ShouldIncludeOperation(op).Should().BeFalse();
+    }
+
+    [Fact]
     public void Should_exclude_operations_exceeding_MaxArgumentCount()
     {
         var sut = CreateSut(new McpOptions { MaxArgumentCount = 1 });
