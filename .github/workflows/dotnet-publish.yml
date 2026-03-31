@@ -58,5 +58,6 @@ jobs:
           else
             gh release create "${GITHUB_REF_NAME}" \
               --title "${GITHUB_REF_NAME}" \
-              --notes "NuGet release for GraphQL.MCP ${GITHUB_REF_NAME}"
+              --notes "NuGet release for GraphQL.MCP ${GITHUB_REF_NAME}" \
+              --latest
           fi
