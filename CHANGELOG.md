@@ -33,7 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - stdio transport for both .NET and Java using line-delimited JSON-RPC over stdin/stdout
 - Netflix DGS adapter package, enablement annotation, example app, and CI smoke build
 - dedicated docs for policies, adapters, and roadmap
-- dedicated release guidance and beta/stable criteria documentation
+- dedicated stable-release guidance, version-neutral install snippets, and release criteria documentation
 ### Fixed
 - ISchema DI resolution crash - Hot Chocolate adapter now uses `IRequestExecutorResolver` instead of `ISchema` (not registered in HC DI container)
 - Integer argument deserialization - added `TryGetInt32` check before `TryGetInt64` in `ToolExecutor.DeserializeJsonElement`

@@ -12,7 +12,7 @@ This roadmap tracks the cross-framework direction of graphql-mcp.
 - curated exploration walkthroughs and reusable request assets for the sample apps
 - MCP prompts for exploration and tool-selection workflows
 - MCP resources for catalog overview and domain summaries
-- advanced prompt/resource packs for workflow planning, candidate comparison, safe-call prep, tool summaries, and reusable discovery playbooks
+- advanced prompt and resource packs for workflow planning, candidate comparison, safe-call prep, tool summaries, and reusable discovery playbooks
 - advanced policy controls around complexity and curation
 - reusable policy presets and profiles for common curation modes
 - shared profile packs for common schema families and industry domains
@@ -21,15 +21,15 @@ This roadmap tracks the cross-framework direction of graphql-mcp.
 - stdio transport
 - Netflix DGS adapter
 - launch polish across README, release guidance, and examples
-- beta hardening for CI, package validation, and prerelease/stable release behavior
-- Java Spring GraphQL alpha-preview track
+- stable hardening for CI, package validation, and prerelease versus stable release behavior
+- Java Spring GraphQL and DGS stable-ready track
 - CI/CD for NuGet and Maven Central
 - docs and example apps for .NET and Java
 
 ## Near-Term
 
-- stabilize Spring GraphQL and DGS together from alpha-preview toward broader Java beta confidence
-- cut the first .NET beta after one quiet compatibility cycle
+- cut stable `.NET` and `Java` release lines
+- keep Spring GraphQL and DGS aligned across docs, CI, and example coverage through the first stable cycle
 
 ## Next Differentiators
 

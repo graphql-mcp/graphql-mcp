@@ -2,10 +2,10 @@
 
 ## Status
 
-The Java/Spring track is available as an alpha-preview release on Maven Central.
+The Java and Spring GraphQL track is stable-ready in the repository and published on Maven Central. Use the latest published version until you cut the stable tag.
 
-- Core execution, publishing, Spring Boot auto-configuration, Streamable HTTP transport, and stdio transport are implemented
-- Example app and tests exist in the repo
+- core execution, publishing, Spring Boot auto-configuration, Streamable HTTP transport, and stdio transport are implemented
+- example app and tests exist in the repo
 
 ## Prerequisites
 
@@ -15,7 +15,7 @@ The Java/Spring track is available as an alpha-preview release on Maven Central.
 
 ## Modules
 
-The current Java alpha-preview uses two modules:
+The current Java distribution uses two modules:
 
 - `graphql-mcp-spring-boot-starter`
 - `graphql-mcp-web`
@@ -57,24 +57,28 @@ public class BookController {
 }
 ```
 
-## Example Dependency Setup
+## Dependency Setup
 
-Add the following dependencies to your `pom.xml`:
+Add the following dependencies to your `pom.xml` and replace the placeholder with the latest published version:
 
 ```xml
+<properties>
+    <graphql-mcp.version>REPLACE_WITH_LATEST_VERSION</graphql-mcp.version>
+</properties>
+
 <dependency>
     <groupId>dev.graphql-mcp</groupId>
     <artifactId>graphql-mcp-spring-boot-starter</artifactId>
-    <version>0.1.0-alpha.5</version>
+    <version>${graphql-mcp.version}</version>
 </dependency>
 <dependency>
     <groupId>dev.graphql-mcp</groupId>
     <artifactId>graphql-mcp-web</artifactId>
-    <version>0.1.0-alpha.5</version>
+    <version>${graphql-mcp.version}</version>
 </dependency>
 ```
 
-If you are running the example locally, install the Java reactor first:
+If you are running the example locally from this repository, install the Java reactor first:
 
 ```bash
 mvn -B -ntp -f src/java/pom.xml -DskipTests install
@@ -128,9 +132,8 @@ curl -X POST http://localhost:8080/mcp \
 
 ## Current Limitations
 
-- The Java docs are intentionally lightweight while the Java alpha matures
-- discovery metadata is intentionally lightweight
-- Cross-framework docs are still centered on the .NET release track
+- semantic ranking is still intentionally lightweight compared with a full semantic indexing layer
+- cross-framework docs still focus on the shared surface first and framework-specific deep dives second
 
 ## Next Steps
 

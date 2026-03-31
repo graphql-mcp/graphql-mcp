@@ -2,17 +2,17 @@
 
 ## Status
 
-The DGS adapter is implemented in the repo and queued for the next Java alpha release. It is built on top of the shared Spring GraphQL integration.
+The DGS adapter is stable-ready in the repository and built on top of the shared Spring GraphQL integration. Publish it with the same stable Java version when you cut the stable Java line.
 
 ## Minimal Setup
 
-Add the dependency:
+Add the dependency and replace the placeholder with the version you are publishing:
 
 ```xml
 <dependency>
     <groupId>dev.graphql-mcp</groupId>
     <artifactId>graphql-mcp-dgs</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
+    <version>REPLACE_WITH_LATEST_VERSION</version>
 </dependency>
 ```
 
