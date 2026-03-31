@@ -57,7 +57,7 @@ jobs:
           mvn -B -ntp -Dmaven.repo.local="${{ env.MAVEN_REPO_LOCAL }}" -f examples/java-dgs-minimal/pom.xml -DskipTests package
 
       - name: Upload coverage
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         with:
           files: 'src/java/**/target/site/jacoco/jacoco.xml'
           fail_ci_if_error: false
