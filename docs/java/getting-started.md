@@ -4,7 +4,7 @@
 
 The Java/Spring track is available as an alpha-preview release on Maven Central.
 
-- Core execution, publishing, Spring Boot auto-configuration, and Streamable HTTP transport are implemented
+- Core execution, publishing, Spring Boot auto-configuration, Streamable HTTP transport, and stdio transport are implemented
 - Example app and tests exist in the repo
 
 ## Prerequisites
@@ -92,7 +92,7 @@ mvn -B -ntp -f examples/java-spring-minimal/pom.xml spring-boot:run
 2. The schema is introspected into a canonical operation list
 3. Policy and naming rules are applied
 4. MCP tool descriptors are published
-5. The HTTP endpoint serves MCP over `POST /mcp`
+5. MCP is served either over `POST /mcp` or through stdio, depending on `graphql.mcp.transport`
 
 ## Test It
 

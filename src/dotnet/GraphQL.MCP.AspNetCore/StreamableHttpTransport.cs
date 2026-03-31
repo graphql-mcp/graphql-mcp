@@ -150,6 +150,38 @@ public sealed class StreamableHttpTransport
         await context.Response.WriteAsync(JsonSerializer.Serialize(metadata, JsonOptions));
     }
 
+    /// <summary>
+    /// Handles a single JSON-RPC message over stdio.
+    /// </summary>
+    public async Task<StdioMcpResponse> HandleStdioMessageAsync(
+        string requestJson,
+        string? sessionId,
+        CancellationToken cancellationToken)
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Method = HttpMethods.Post;
+        context.Request.ContentType = "application/json";
+        context.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes(requestJson));
+        context.RequestAborted = cancellationToken;
+        context.Response.Body = new MemoryStream();
+
+        if (!string.IsNullOrWhiteSpace(sessionId))
+        {
+            context.Request.Headers["Mcp-Session-Id"] = sessionId;
+        }
+
+        await HandleRequestAsync(context);
+        context.Response.Body.Position = 0;
+
+        using var reader = new StreamReader(context.Response.Body, Encoding.UTF8, leaveOpen: true);
+        var responseJson = await reader.ReadToEndAsync(cancellationToken);
+        var nextSessionId = context.Response.Headers.TryGetValue("Mcp-Session-Id", out var headerValue)
+            ? headerValue.ToString()
+            : null;
+
+        return new StdioMcpResponse(responseJson, nextSessionId);
+    }
+
     private async Task HandleInitialize(HttpContext context, object? id)
     {
         // Create session
@@ -1406,6 +1438,10 @@ public sealed class StreamableHttpTransport
         string? Target,
         string? Prompt,
         string Purpose);
+
+    public sealed record StdioMcpResponse(
+        string ResponseJson,
+        string? SessionId);
 
     private const string CatalogOverviewUri = "graphql-mcp://catalog/overview";
     private const string AuthorizationMetadataUri = "graphql-mcp://auth/metadata";

@@ -45,7 +45,7 @@ builder.Services.AddHotChocolateMcp(options =>
     options.Authorization.Metadata.TokenEndpoint = "https://auth.example.com/token";
 
     // --- Transport ---
-    options.Transport = McpTransport.StreamableHttp; // StreamableHttp (only option in v0.1)
+    options.Transport = McpTransport.StreamableHttp; // StreamableHttp | Stdio
 });
 ```
 
@@ -146,7 +146,7 @@ Same as Raw but prefix is always applied. Without a prefix, identical to Raw.
 | `Authorization.Mode` | `McpAuthMode` | `None` | Auth mode |
 | `Authorization.RequiredScopes` | `List<string>` | `[]` | Scopes advertised to authenticated MCP clients |
 | `Authorization.Metadata.*` | `McpOAuthMetadataOptions` | defaults | Optional OAuth metadata surfaced through MCP resources and the well-known metadata route |
-| `Transport` | `McpTransport` | `StreamableHttp` | Transport protocol |
+| `Transport` | `McpTransport` | `StreamableHttp` | Transport protocol: `StreamableHttp` or `Stdio` |
 
 ## Presets And Profiles
 

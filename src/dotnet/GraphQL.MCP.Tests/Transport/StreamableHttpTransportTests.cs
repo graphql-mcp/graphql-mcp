@@ -482,6 +482,58 @@ public class StreamableHttpTransportTests
     }
 
     [Fact]
+    public async Task Stdio_message_handler_should_preserve_session_across_calls()
+    {
+        using var host = await CreateTestHost(options => options.Transport = McpTransport.Stdio);
+        var transport = host.Services.GetRequiredService<StreamableHttpTransport>();
+
+        var initialize = await transport.HandleStdioMessageAsync(
+            "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\"}",
+            null,
+            CancellationToken.None);
+
+        initialize.SessionId.Should().NotBeNullOrWhiteSpace();
+
+        var toolsList = await transport.HandleStdioMessageAsync(
+            "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/list\"}",
+            initialize.SessionId,
+            CancellationToken.None);
+
+        using var json = JsonDocument.Parse(toolsList.ResponseJson);
+        json.RootElement.GetProperty("result").GetProperty("tools").GetArrayLength().Should().Be(2);
+    }
+
+    [Fact]
+    public async Task Stdio_hosted_service_should_emit_jsonrpc_lines()
+    {
+        using var host = await CreateTestHost(options => options.Transport = McpTransport.Stdio);
+        var transport = host.Services.GetRequiredService<StreamableHttpTransport>();
+        var logger = host.Services.GetRequiredService<Microsoft.Extensions.Logging.ILogger<StdioMcpHostedService>>();
+        var service = new StdioMcpHostedService(
+            transport,
+            Microsoft.Extensions.Options.Options.Create(new McpOptions { Transport = McpTransport.Stdio }),
+            logger);
+
+        var input = new StringReader(
+            "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\"}\n" +
+            "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/list\"}\n");
+        var output = new StringWriter();
+
+        await service.RunAsync(input, output, CancellationToken.None);
+
+        var lines = output.ToString()
+            .Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries);
+        lines.Should().HaveCount(2);
+
+        using var initJson = JsonDocument.Parse(lines[0]);
+        using var listJson = JsonDocument.Parse(lines[1]);
+        initJson.RootElement.GetProperty("result").GetProperty("protocolVersion").GetString()
+            .Should().Be("2025-06-18");
+        listJson.RootElement.GetProperty("result").GetProperty("tools").GetArrayLength()
+            .Should().Be(2);
+    }
+
+    [Fact]
     public async Task Catalog_list_should_include_semantic_hints()
     {
         using var host = await CreateTestHost();

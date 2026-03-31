@@ -29,12 +29,22 @@ public class McpController {
   private final ToolExecutor toolExecutor;
   private final List<ToolDescriptor> tools;
   private final ConcurrentHashMap<String, Boolean> sessions = new ConcurrentHashMap<>();
+  private final String transportMode;
 
   public McpController(
       GraphQLMCPServer server, ToolExecutor toolExecutor, List<ToolDescriptor> tools) {
+    this(server, toolExecutor, tools, "streamable-http");
+  }
+
+  public McpController(
+      GraphQLMCPServer server,
+      ToolExecutor toolExecutor,
+      List<ToolDescriptor> tools,
+      String transportMode) {
     this.server = server;
     this.toolExecutor = toolExecutor;
     this.tools = tools;
+    this.transportMode = transportMode == null ? "streamable-http" : transportMode;
   }
 
   @PostMapping(
@@ -44,10 +54,27 @@ public class McpController {
       @RequestBody JsonNode body,
       @RequestHeader(value = "Mcp-Session-Id", required = false) String sessionId,
       HttpServletRequest request) {
+    if (!"streamable-http".equalsIgnoreCase(transportMode)) {
+      return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).build();
+    }
 
+    ProtocolResponse protocolResponse = handleProtocol(body, sessionId, extractHeaders(request));
+    ResponseEntity.BodyBuilder response = ResponseEntity.status(protocolResponse.status());
+    if (protocolResponse.sessionId() != null) {
+      response.header("Mcp-Session-Id", protocolResponse.sessionId());
+    }
+    return response.body(protocolResponse.body());
+  }
+
+  ProtocolResponse handleStdio(JsonNode body, String sessionId) {
+    return handleProtocol(body, sessionId, Map.of());
+  }
+
+  private ProtocolResponse handleProtocol(
+      JsonNode body, String sessionId, Map<String, String> headers) {
     if (!body.has("jsonrpc") || !body.has("method")) {
-      return ResponseEntity.badRequest()
-          .body(jsonRpcError(body, -32600, "Invalid JSON-RPC request"));
+      return new ProtocolResponse(
+          HttpStatus.BAD_REQUEST, jsonRpcError(body, -32600, "Invalid JSON-RPC request"), null);
     }
 
     String method = body.get("method").asText();
@@ -61,25 +88,27 @@ public class McpController {
     // All other methods require a valid session
     if (sessionId == null || !sessions.containsKey(sessionId)) {
       if (sessionId != null) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND)
-            .body(jsonRpcError(body, -32000, "Unknown session"));
+        return new ProtocolResponse(
+            HttpStatus.NOT_FOUND, jsonRpcError(body, -32000, "Unknown session"), null);
       }
-      return ResponseEntity.badRequest()
-          .body(jsonRpcError(body, -32000, "Missing Mcp-Session-Id header"));
+      return new ProtocolResponse(
+          HttpStatus.BAD_REQUEST,
+          jsonRpcError(body, -32000, "Missing Mcp-Session-Id header"),
+          null);
     }
 
     return switch (method) {
-      case "tools/list" -> handleToolsList(id);
-      case "prompts/list" -> handlePromptsListRpc(id);
+      case "tools/list" -> ok(handleToolsListResult(id));
+      case "prompts/list" -> ok(buildPromptsListResult(id));
       case "prompts/get" -> handlePromptGetRpc(id, body.get("params"));
-      case "resources/list" -> handleResourcesListRpc(id);
+      case "resources/list" -> ok(buildResourcesListResult(id));
       case "resources/read" -> handleResourcesReadRpc(id, body.get("params"));
-      case "catalog/list", "capabilities/catalog" -> handleCatalogRpc(id);
+      case "catalog/list", "capabilities/catalog" -> ok(buildCatalogRpcResult(id));
       case "catalog/search", "capabilities/search" ->
-          handleCatalogSearchRpc(id, body.get("params"));
-      case "tools/call" -> handleToolsCall(id, body.get("params"), request);
-      case "ping" -> handlePing(id);
-      default -> ResponseEntity.ok(jsonRpcError(body, -32601, "Method not found: " + method));
+          ok(buildCatalogSearchRpcResult(id, body.get("params")));
+      case "tools/call" -> handleToolsCall(id, body.get("params"), headers);
+      case "ping" -> ok(jsonRpcResult(id, MAPPER.createObjectNode()));
+      default -> ok(jsonRpcError(body, -32601, "Method not found: " + method));
     };
   }
 
@@ -101,6 +130,10 @@ public class McpController {
       path = {"/catalog", "/capabilities"},
       produces = MediaType.APPLICATION_JSON_VALUE)
   public ResponseEntity<ObjectNode> handleCatalog() {
+    if (!"streamable-http".equalsIgnoreCase(transportMode)) {
+      return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).build();
+    }
+
     return ResponseEntity.ok(buildCatalogResult());
   }
 
@@ -108,6 +141,10 @@ public class McpController {
       path = "/.well-known/oauth-authorization-server",
       produces = MediaType.APPLICATION_JSON_VALUE)
   public ResponseEntity<ObjectNode> handleOAuthAuthorizationServerMetadata() {
+    if (!"streamable-http".equalsIgnoreCase(transportMode)) {
+      return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).build();
+    }
+
     ObjectNode metadata = buildOAuthAuthorizationServerMetadata();
     if (metadata == null) {
       return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
@@ -116,7 +153,7 @@ public class McpController {
     return ResponseEntity.ok(metadata);
   }
 
-  private ResponseEntity<ObjectNode> handleInitialize(JsonNode id) {
+  private ProtocolResponse handleInitialize(JsonNode id) {
     String newSessionId = UUID.randomUUID().toString().replace("-", "");
     sessions.put(newSessionId, true);
 
@@ -165,12 +202,10 @@ public class McpController {
     serverInfo.put("version", initResult.serverInfo().version());
     result.set("serverInfo", serverInfo);
 
-    return ResponseEntity.ok()
-        .header("Mcp-Session-Id", newSessionId)
-        .body(jsonRpcResult(id, result));
+    return new ProtocolResponse(HttpStatus.OK, jsonRpcResult(id, result), newSessionId);
   }
 
-  private ResponseEntity<ObjectNode> handleToolsList(JsonNode id) {
+  private ObjectNode handleToolsListResult(JsonNode id) {
     ArrayNode toolsArray = MAPPER.createArrayNode();
     for (ToolDescriptor tool : tools) {
       ObjectNode toolNode = MAPPER.createObjectNode();
@@ -190,14 +225,14 @@ public class McpController {
 
     ObjectNode result = MAPPER.createObjectNode();
     result.set("tools", toolsArray);
-    return ResponseEntity.ok(jsonRpcResult(id, result));
+    return jsonRpcResult(id, result);
   }
 
   @SuppressWarnings("unchecked")
-  private ResponseEntity<ObjectNode> handleToolsCall(
-      JsonNode id, JsonNode params, HttpServletRequest request) {
+  private ProtocolResponse handleToolsCall(
+      JsonNode id, JsonNode params, Map<String, String> requestHeaders) {
     if (params == null || !params.has("name")) {
-      return ResponseEntity.ok(jsonRpcError(id, -32602, "Missing tool name"));
+      return ok(jsonRpcError(id, -32602, "Missing tool name"));
     }
 
     String toolName = params.get("name").asText();
@@ -208,7 +243,7 @@ public class McpController {
 
     // Extract auth headers for passthrough
     Map<String, String> headers = new HashMap<>();
-    String authHeader = request.getHeader("Authorization");
+    String authHeader = requestHeaders.get("Authorization");
     if (authHeader != null) {
       headers.put("Authorization", authHeader);
     }
@@ -229,33 +264,17 @@ public class McpController {
     content.add(textContent);
     result.set("content", content);
 
-    return ResponseEntity.ok(jsonRpcResult(id, result));
+    return ok(jsonRpcResult(id, result));
   }
 
-  private ResponseEntity<ObjectNode> handlePing(JsonNode id) {
-    return ResponseEntity.ok(jsonRpcResult(id, MAPPER.createObjectNode()));
-  }
-
-  private ResponseEntity<ObjectNode> handleCatalogRpc(JsonNode id) {
-    return ResponseEntity.ok(jsonRpcResult(id, buildCatalogResult()));
-  }
-
-  private ResponseEntity<ObjectNode> handleResourcesListRpc(JsonNode id) {
-    return ResponseEntity.ok(jsonRpcResult(id, buildResourcesListResult()));
-  }
-
-  private ResponseEntity<ObjectNode> handlePromptsListRpc(JsonNode id) {
-    return ResponseEntity.ok(jsonRpcResult(id, buildPromptsListResult()));
-  }
-
-  private ResponseEntity<ObjectNode> handlePromptGetRpc(JsonNode id, JsonNode params) {
+  private ProtocolResponse handlePromptGetRpc(JsonNode id, JsonNode params) {
     if (params == null || !params.hasNonNull("name")) {
-      return ResponseEntity.ok(jsonRpcError(id, -32602, "Missing prompt name"));
+      return ok(jsonRpcError(id, -32602, "Missing prompt name"));
     }
 
     String promptName = params.path("name").asText(null);
     if (promptName == null || promptName.isBlank()) {
-      return ResponseEntity.ok(jsonRpcError(id, -32602, "Missing prompt name"));
+      return ok(jsonRpcError(id, -32602, "Missing prompt name"));
     }
 
     JsonNode arguments = params.get("arguments");
@@ -263,37 +282,32 @@ public class McpController {
     try {
       result = buildPromptGetResult(promptName, arguments);
     } catch (IllegalArgumentException ex) {
-      return ResponseEntity.ok(jsonRpcError(id, -32602, ex.getMessage()));
+      return ok(jsonRpcError(id, -32602, ex.getMessage()));
     }
 
     if (result == null) {
-      return ResponseEntity.ok(jsonRpcError(id, -32602, "Unknown prompt: " + promptName));
+      return ok(jsonRpcError(id, -32602, "Unknown prompt: " + promptName));
     }
 
-    return ResponseEntity.ok(jsonRpcResult(id, result));
+    return ok(jsonRpcResult(id, result));
   }
 
-  private ResponseEntity<ObjectNode> handleResourcesReadRpc(JsonNode id, JsonNode params) {
+  private ProtocolResponse handleResourcesReadRpc(JsonNode id, JsonNode params) {
     if (params == null || !params.hasNonNull("uri")) {
-      return ResponseEntity.ok(jsonRpcError(id, -32602, "Missing resource uri"));
+      return ok(jsonRpcError(id, -32602, "Missing resource uri"));
     }
 
     String uri = params.path("uri").asText(null);
     if (uri == null || uri.isBlank()) {
-      return ResponseEntity.ok(jsonRpcError(id, -32602, "Missing resource uri"));
+      return ok(jsonRpcError(id, -32602, "Missing resource uri"));
     }
 
     ObjectNode result = buildResourcesReadResult(uri);
     if (result == null) {
-      return ResponseEntity.ok(jsonRpcError(id, -32602, "Unknown resource: " + uri));
+      return ok(jsonRpcError(id, -32602, "Unknown resource: " + uri));
     }
 
-    return ResponseEntity.ok(jsonRpcResult(id, result));
-  }
-
-  private ResponseEntity<ObjectNode> handleCatalogSearchRpc(JsonNode id, JsonNode params) {
-    return ResponseEntity.ok(
-        jsonRpcResult(id, buildCatalogSearchResult(parseSearchRequest(params))));
+    return ok(jsonRpcResult(id, result));
   }
 
   private ObjectNode buildCatalogResult() {
@@ -416,6 +430,22 @@ public class McpController {
     result.put("toolCount", tools.size());
     result.set("domains", domains);
     return result;
+  }
+
+  private ObjectNode buildCatalogRpcResult(JsonNode id) {
+    return jsonRpcResult(id, buildCatalogResult());
+  }
+
+  private ObjectNode buildResourcesListResult(JsonNode id) {
+    return jsonRpcResult(id, buildResourcesListResult());
+  }
+
+  private ObjectNode buildPromptsListResult(JsonNode id) {
+    return jsonRpcResult(id, buildPromptsListResult());
+  }
+
+  private ObjectNode buildCatalogSearchRpcResult(JsonNode id, JsonNode params) {
+    return jsonRpcResult(id, buildCatalogSearchResult(parseSearchRequest(params)));
   }
 
   private ObjectNode buildPromptsListResult() {
@@ -1318,6 +1348,19 @@ public class McpController {
     return value == null || value.isBlank() ? null : value;
   }
 
+  private Map<String, String> extractHeaders(HttpServletRequest request) {
+    Map<String, String> headers = new HashMap<>();
+    String authorization = request.getHeader("Authorization");
+    if (authorization != null && !authorization.isBlank()) {
+      headers.put("Authorization", authorization);
+    }
+    return headers;
+  }
+
+  private ProtocolResponse ok(ObjectNode body) {
+    return new ProtocolResponse(HttpStatus.OK, body, null);
+  }
+
   private List<String> optionalTextArray(JsonNode node) {
     if (node == null || node.isNull()) {
       return List.of();
@@ -1451,6 +1494,8 @@ public class McpController {
   private static final String DISCOVERY_PACK_URI_PREFIX = "graphql-mcp://packs/discovery/";
 
   private record SearchMatch(ToolDescriptor tool, int score) {}
+
+  record ProtocolResponse(HttpStatus status, ObjectNode body, String sessionId) {}
 
   private record ResourcePackDefinition(String name, String title, String description) {}
 

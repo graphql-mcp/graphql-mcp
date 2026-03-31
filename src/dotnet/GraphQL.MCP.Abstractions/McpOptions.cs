@@ -204,7 +204,10 @@ public enum McpAuthMode
 public enum McpTransport
 {
     /// <summary>Streamable HTTP (MCP spec 2025-06-18).</summary>
-    StreamableHttp
+    StreamableHttp,
+
+    /// <summary>stdio transport for local/embedded MCP clients.</summary>
+    Stdio
 }
 
 /// <summary>

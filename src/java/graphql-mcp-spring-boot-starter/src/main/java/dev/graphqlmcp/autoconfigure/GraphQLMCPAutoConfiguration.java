@@ -8,11 +8,14 @@ import dev.graphqlmcp.properties.GraphQLMCPProperties;
 import dev.graphqlmcp.publishing.ToolDescriptor;
 import dev.graphqlmcp.publishing.ToolPublisher;
 import dev.graphqlmcp.server.GraphQLMCPServer;
+import dev.graphqlmcp.web.GraphQLMCPStdioServer;
+import dev.graphqlmcp.web.McpController;
 import graphql.schema.GraphQLSchema;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -90,6 +93,22 @@ public class GraphQLMCPAutoConfiguration {
   @Bean
   public ToolExecutor toolExecutor(GraphQLExecutor executor, List<ToolDescriptor> tools) {
     return new ToolExecutor(executor, tools);
+  }
+
+  @Bean
+  @ConditionalOnMissingBean
+  public McpController mcpController(
+      GraphQLMCPServer server,
+      ToolExecutor toolExecutor,
+      List<ToolDescriptor> tools,
+      GraphQLMCPProperties properties) {
+    return new McpController(server, toolExecutor, tools, properties.getTransport());
+  }
+
+  @Bean
+  @ConditionalOnProperty(prefix = "graphql.mcp", name = "transport", havingValue = "stdio")
+  public GraphQLMCPStdioServer graphQLMCPStdioServer(McpController controller) {
+    return new GraphQLMCPStdioServer(controller);
   }
 
   private GraphQLToMCPToolMapper.GraphQLMCPConfig buildConfig(GraphQLMCPProperties properties) {

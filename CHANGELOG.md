@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - shared policy packs for commerce, content, and operations-oriented schemas
 - stronger domain inference that falls back through return types, wrapper members, field names, and descriptions
 - OAuth 2.1 metadata discovery across `initialize`, `resources/read graphql-mcp://auth/metadata`, and `/.well-known/oauth-authorization-server`
+- stdio transport for both .NET and Java using line-delimited JSON-RPC over stdin/stdout
 - dedicated docs for policies, adapters, and roadmap
 ### Fixed
 - ISchema DI resolution crash - Hot Chocolate adapter now uses `IRequestExecutorResolver` instead of `ISchema` (not registered in HC DI container)

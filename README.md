@@ -164,7 +164,7 @@ builder.Services.AddHotChocolateMcp(options =>   // or AddGraphQLDotNetMcp
     options.Authorization.Metadata.Issuer = "https://auth.example.com";
     options.Authorization.Metadata.AuthorizationEndpoint = "https://auth.example.com/authorize";
     options.Authorization.Metadata.TokenEndpoint = "https://auth.example.com/token";
-    options.Transport = McpTransport.StreamableHttp;
+    options.Transport = McpTransport.StreamableHttp; // or McpTransport.Stdio
 });
 ```
 
@@ -209,7 +209,7 @@ graphql:
         issuer: https://auth.example.com
         authorization-endpoint: https://auth.example.com/authorize
         token-endpoint: https://auth.example.com/token
-    transport: streamable-http
+    transport: streamable-http # or stdio
 ```
 
 ---
@@ -335,7 +335,7 @@ Restart Claude Desktop. Your GraphQL operations will appear as tools.
 - [x] Reusable policy presets and profiles
 - [x] Shared policy packs for common schema families and industry domains
 - [x] OAuth 2.1 metadata support
-- [ ] stdio transport
+- [x] stdio transport
 - [ ] Netflix DGS adapter
 
 ---
