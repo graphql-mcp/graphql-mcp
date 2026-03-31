@@ -18,6 +18,7 @@ This roadmap tracks the cross-framework direction of graphql-mcp.
 - shared profile packs for common schema families and industry domains
 - stronger domain inference and grouping heuristics for large schemas
 - OAuth 2.1 metadata support across MCP discovery surfaces and a well-known metadata route
+- stdio transport
 - Java Spring GraphQL alpha-preview track
 - CI/CD for NuGet and Maven Central
 - docs and example apps for .NET and Java
@@ -34,5 +35,4 @@ This roadmap tracks the cross-framework direction of graphql-mcp.
 
 ## Later
 
-- stdio transport
 - Netflix DGS adapter

@@ -301,10 +301,51 @@ Advanced prompt names now include:
 | Unknown method | 200 | -32601 (Method not found) |
 | Missing params | 200 | -32602 (Invalid params) |
 
-## Future Transports
+## stdio
 
-### stdio (planned for v0.2+)
-For local/embedded scenarios where the MCP server runs as a child process. Useful for local development tools and CLI integrations.
+graphql-mcp also supports MCP over `stdin`/`stdout` for local or embedded client integrations.
+
+### Configuration
+
+Use the same server surface, but switch the transport mode:
+
+```csharp
+builder.Services.AddHotChocolateMcp(options =>
+{
+    options.Transport = McpTransport.Stdio;
+});
+```
+
+```yaml
+graphql:
+  mcp:
+    transport: stdio
+```
+
+### Behavior
+
+- one JSON-RPC request per line on standard input
+- one JSON-RPC response per line on standard output
+- the stdio loop preserves the negotiated MCP session across requests after `initialize`
+- the same request methods are available as Streamable HTTP: `initialize`, `tools/list`, `prompts/list`, `prompts/get`, `resources/list`, `resources/read`, `catalog/list`, `catalog/search`, `tools/call`, and `ping`
+
+### Example
+
+Input:
+
+```json
+{"jsonrpc":"2.0","id":1,"method":"initialize"}
+{"jsonrpc":"2.0","id":2,"method":"tools/list"}
+```
+
+Output:
+
+```json
+{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-06-18","capabilities":{"tools":{"listChanged":true}}}}
+{"jsonrpc":"2.0","id":2,"result":{"tools":[...]}}
+```
+
+## Future Transports
 
 ### SSE (not planned)
 Server-Sent Events transport is deprecated in the MCP spec. Streamable HTTP supersedes it.

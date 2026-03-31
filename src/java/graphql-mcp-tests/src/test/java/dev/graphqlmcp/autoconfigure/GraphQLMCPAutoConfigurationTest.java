@@ -6,6 +6,8 @@ import dev.graphqlmcp.TestSchemas;
 import dev.graphqlmcp.properties.GraphQLMCPProperties;
 import dev.graphqlmcp.publishing.ToolDescriptor;
 import dev.graphqlmcp.server.GraphQLMCPServer;
+import dev.graphqlmcp.web.GraphQLMCPStdioServer;
+import dev.graphqlmcp.web.McpController;
 import graphql.schema.GraphQLSchema;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -85,6 +87,21 @@ class GraphQLMCPAutoConfigurationTest {
               assertFalse(properties.getPolicyProfile().getRequireDescriptions());
               assertEquals(0, properties.getPolicyProfile().getMinDescriptionLength());
               assertEquals(1, properties.getPolicyProfile().getIncludedDomains().size());
+            });
+  }
+
+  @Test
+  void registers_stdio_runner_when_transport_is_stdio() {
+    new ApplicationContextRunner()
+        .withConfiguration(AutoConfigurations.of(GraphQLMCPAutoConfiguration.class))
+        .withBean(GraphQLSchema.class, TestSchemas::createSchema)
+        .withPropertyValues("graphql.mcp.transport=stdio")
+        .run(
+            context -> {
+              assertTrue(context.containsBean("mcpController"));
+              assertTrue(context.containsBean("graphQLMCPStdioServer"));
+              assertNotNull(context.getBean(McpController.class));
+              assertNotNull(context.getBean(GraphQLMCPStdioServer.class));
             });
   }
 }

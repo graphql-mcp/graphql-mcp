@@ -47,6 +47,7 @@ public static class McpServiceCollectionExtensions
         services.AddHostedService<McpToolInitializationService>();
 
         services.TryAddSingleton<StreamableHttpTransport>();
+        services.AddHostedService<StdioMcpHostedService>();
 
         return services;
     }

@@ -34,7 +34,7 @@ graphql:
     max-tool-count: 50
     max-argument-count: 25
     max-argument-complexity: 75
-    transport: streamable-http
+    transport: streamable-http # or stdio
     authorization:
       mode: passthrough
       required-scopes:
@@ -67,7 +67,7 @@ These properties are currently bound by [GraphQLMCPProperties.java](/C:/Users/in
 | `graphql.mcp.max-tool-count` | `int` | `50` | Max number of tools published |
 | `graphql.mcp.max-argument-count` | `int` | `25` | Max argument count allowed for a published tool |
 | `graphql.mcp.max-argument-complexity` | `int` | `75` | Max weighted input complexity allowed for a published tool |
-| `graphql.mcp.transport` | `string` | `streamable-http` | Transport mode; only Streamable HTTP is currently implemented |
+| `graphql.mcp.transport` | `string` | `streamable-http` | Transport mode: `streamable-http` or `stdio` |
 | `graphql.mcp.authorization.mode` | `string` | `none` | Authorization mode; `passthrough` forwards the incoming `Authorization` header |
 | `graphql.mcp.authorization.required-scopes` | `list<string>` | `[]` | Scopes advertised to authenticated MCP clients |
 | `graphql.mcp.authorization.metadata.*` | object | defaults | Optional OAuth metadata surfaced through MCP resources and the well-known metadata route |
@@ -135,7 +135,6 @@ This lets teams reuse a common preset, define a small profile for domain-specifi
 
 ## What Is Not There Yet
 
-- stdio transport
 - Netflix DGS adapter
 - deeper semantic ranking beyond the current lightweight hint model
 
