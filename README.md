@@ -1,6 +1,6 @@
 # graphql-mcp
 
-> **MCP capabilities for every GraphQL server — Hot Chocolate, graphql-dotnet, Spring GraphQL, and more.**
+> **MCP capabilities for every GraphQL server - Hot Chocolate, graphql-dotnet, Spring GraphQL, and more.**
 > Cross-framework curation, policy controls, and AI-friendly capability discovery.
 
 [![NuGet](https://img.shields.io/nuget/v/GraphQL.MCP.HotChocolate?label=HotChocolate&color=blue)](https://www.nuget.org/packages/GraphQL.MCP.HotChocolate)
@@ -9,27 +9,24 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![.NET CI](https://github.com/graphql-mcp/graphql-mcp/actions/workflows/dotnet-ci.yml/badge.svg)](https://github.com/graphql-mcp/graphql-mcp/actions/workflows/dotnet-ci.yml)
 
-<!-- TODO: Add 30-second demo GIF here -->
-<!-- ![Demo](docs/assets/demo.gif) -->
-
 ---
 
 ## What is this?
 
-graphql-mcp is a cross-framework GraphQL AI capability layer. It turns your existing GraphQL API into an [MCP server](https://modelcontextprotocol.io/) that AI clients (Claude, Copilot, Cursor, Windsurf) can use directly — with curation, policy controls, and safety built in.
+graphql-mcp is a cross-framework GraphQL AI capability layer. It turns your existing GraphQL API into an [MCP server](https://modelcontextprotocol.io/) that AI clients can use directly, with curation, policy controls, and safety built in.
 
 No schema duplication. No sidecar process. Just your GraphQL API, now speaking MCP.
 
 ## Why graphql-mcp?
 
-Some frameworks are adding native MCP support (e.g., Hot Chocolate 16). graphql-mcp goes further:
+Some frameworks are adding native MCP support. graphql-mcp goes further:
 
 | | Native framework MCP | graphql-mcp |
 |---|---|---|
 | Cross-framework support | One framework only | Hot Chocolate, graphql-dotnet, Spring |
-| Curation & policy engine | Varies | Presets, shared profile packs, reusable profiles, glob-pattern field/type exclusion, mutation blocking, depth limits |
+| Curation and policy engine | Varies | Presets, shared profile packs, reusable profiles, glob-pattern field/type exclusion, mutation blocking, depth limits |
 | AI-friendly naming | Varies | VerbNoun, Raw, PrefixedRaw policies with tool prefixes |
-| Observability | Varies | Built-in OpenTelemetry traces + metrics |
+| Observability | Varies | Built-in OpenTelemetry traces and metrics |
 | Portable core | No | Framework-agnostic engine, adapters are thin |
 
 **Use native MCP when** your framework ships it and it covers your needs.
@@ -37,17 +34,16 @@ Some frameworks are adding native MCP support (e.g., Hot Chocolate 16). graphql-
 
 ## Discovery
 
-graphql-mcp now ships layered discovery surfaces plus MCP prompt workflows:
+graphql-mcp ships layered discovery surfaces plus MCP prompt workflows:
 
 - `tools/list` includes per-tool `domain`, `category`, `tags`, and `semanticHints` annotations
 - `prompts/list` and `prompts/get` expose reusable exploration, planning, comparison, and safe-call templates
 - `resources/list` and `resources/read` expose stable overview, domain, tool, and discovery playbook documents
 - `catalog/list` returns grouped domain summaries, semantic hints, and tool metadata for exploration UIs, with stronger grouping for generic wrappers and search-style schemas
-- `catalog/search` returns ranked matches with optional query/domain/category/tag filters for discovery UIs
+- `catalog/search` returns ranked matches with optional query, domain, category, and tag filters for discovery UIs
 - `initialize`, `resources/read graphql-mcp://auth/metadata`, and `/.well-known/oauth-authorization-server` expose OAuth metadata and required scopes for authenticated clients
 
-Use [docs/exploration.md](docs/exploration.md) and
-[examples/discovery-workflow](examples/discovery-workflow) for a hands-on discovery walkthrough against the sample apps.
+Use [docs/exploration.md](docs/exploration.md) and [examples/discovery-workflow](examples/discovery-workflow) for a hands-on discovery walkthrough against the sample apps.
 
 ## Supported AI Clients
 
@@ -63,10 +59,10 @@ Use [docs/exploration.md](docs/exploration.md) and
 
 | Framework | Status | Package |
 |-----------|--------|---------|
-| Hot Chocolate (.NET) | Alpha | [`GraphQL.MCP.HotChocolate`](https://www.nuget.org/packages/GraphQL.MCP.HotChocolate) |
-| graphql-dotnet (.NET) | Alpha | [`GraphQL.MCP.GraphQLDotNet`](https://www.nuget.org/packages/GraphQL.MCP.GraphQLDotNet) |
-| Spring GraphQL (Java) | Alpha Preview | [`dev.graphql-mcp:graphql-mcp-spring-boot-starter`](https://central.sonatype.com/artifact/dev.graphql-mcp/graphql-mcp-spring-boot-starter) |
-| Netflix DGS (Java) | Planned | - |
+| Hot Chocolate (.NET) | Stable-ready | [`GraphQL.MCP.HotChocolate`](https://www.nuget.org/packages/GraphQL.MCP.HotChocolate) |
+| graphql-dotnet (.NET) | Stable-ready | [`GraphQL.MCP.GraphQLDotNet`](https://www.nuget.org/packages/GraphQL.MCP.GraphQLDotNet) |
+| Spring GraphQL (Java) | Stable-ready | [`dev.graphql-mcp:graphql-mcp-spring-boot-starter`](https://central.sonatype.com/artifact/dev.graphql-mcp/graphql-mcp-spring-boot-starter) |
+| Netflix DGS (Java) | Stable-ready in repo | `dev.graphql-mcp:graphql-mcp-dgs` |
 
 ---
 
@@ -86,11 +82,25 @@ dotnet add package GraphQL.MCP.GraphQLDotNet
 
 ### Java (Spring)
 
+Use the latest published version from Maven Central:
+
 ```xml
 <dependency>
     <groupId>dev.graphql-mcp</groupId>
     <artifactId>graphql-mcp-spring-boot-starter</artifactId>
-    <version>0.1.0-alpha.5</version>
+    <version>REPLACE_WITH_LATEST_VERSION</version>
+</dependency>
+```
+
+### Java (Netflix DGS)
+
+Use the same latest published graphql-mcp version when the DGS package ships on the stable Java line:
+
+```xml
+<dependency>
+    <groupId>dev.graphql-mcp</groupId>
+    <artifactId>graphql-mcp-dgs</artifactId>
+    <version>REPLACE_WITH_LATEST_VERSION</version>
 </dependency>
 ```
 
@@ -98,7 +108,7 @@ dotnet add package GraphQL.MCP.GraphQLDotNet
 
 ## Quick Start
 
-### Hot Chocolate — Zero Config
+### Hot Chocolate - Zero Config
 
 ```csharp
 using GraphQL.MCP.HotChocolate;
@@ -109,14 +119,14 @@ builder.Services
     .AddGraphQLServer()
     .AddQueryType<Query>();
 
-builder.Services.AddHotChocolateMcp();  // one line
+builder.Services.AddHotChocolateMcp();
 
 var app = builder.Build();
-app.UseGraphQLMcp();                     // maps /graphql + /mcp
+app.UseGraphQLMcp();
 app.Run();
 ```
 
-### graphql-dotnet — Zero Config
+### graphql-dotnet - Zero Config
 
 ```csharp
 using GraphQL.MCP.AspNetCore;
@@ -128,18 +138,18 @@ builder.Services.AddGraphQL(b => b
     .AddSchema<MySchema>()
     .AddSystemTextJson());
 
-builder.Services.AddGraphQLDotNetMcp();  // one line
+builder.Services.AddGraphQLDotNetMcp();
 
 var app = builder.Build();
 app.UseGraphQL("/graphql");
-app.UseGraphQLMcp();                      // maps /mcp
+app.UseGraphQLMcp();
 app.Run();
 ```
 
 ### Full Config (any adapter)
 
 ```csharp
-builder.Services.AddHotChocolateMcp(options =>   // or AddGraphQLDotNetMcp
+builder.Services.AddHotChocolateMcp(options =>
 {
     options.PolicyPreset = McpPolicyPreset.Curated;
     options.PolicyPack = McpPolicyPack.Commerce;
@@ -168,7 +178,7 @@ builder.Services.AddHotChocolateMcp(options =>   // or AddGraphQLDotNetMcp
 });
 ```
 
-### Java — Zero Config
+### Java - Zero Config
 
 ```java
 @EnableGraphQLMCP
@@ -180,7 +190,7 @@ public class App {
 }
 ```
 
-### Java — Full Config (application.yml)
+### Java - Full Config (application.yml)
 
 ```yaml
 graphql:
@@ -216,7 +226,7 @@ graphql:
 
 ## How It Works
 
-```
+```text
 GraphQL Schema --> Schema Canonicalization --> Policy Engine --> MCP Tools
                                                                     |
 AI Client --> POST /mcp --> Tool Executor --> GraphQL Execution --> Result
@@ -224,7 +234,7 @@ AI Client --> POST /mcp --> Tool Executor --> GraphQL Execution --> Result
 
 1. **Introspects** your GraphQL schema at startup
 2. **Canonicalizes** operations into a framework-agnostic model
-3. **Applies policies** — field/type exclusions, naming, depth limits, mutation safety
+3. **Applies policies** - field and type exclusions, naming, depth limits, mutation safety
 4. **Publishes tools** as MCP tool descriptors with JSON Schema inputs
 5. **Executes** GraphQL queries when AI clients invoke tools
 
@@ -232,12 +242,12 @@ AI Client --> POST /mcp --> Tool Executor --> GraphQL Execution --> Result
 
 | Feature | Default |
 |---------|---------|
-| Mutations exposed | **No** — opt-in only |
+| Mutations exposed | **No** - opt-in only |
 | Max output depth | **3 levels** |
 | Max tool count | **50** |
-| Auth forwarded | **No** — opt-in passthrough |
+| Auth forwarded | **No** - opt-in passthrough |
 | Sensitive fields | **You configure** `ExcludedFields` with glob patterns |
-| Selection set exclusion | **Yes** — excluded fields filtered from nested types too |
+| Selection set exclusion | **Yes** - excluded fields filtered from nested types too |
 
 ## Observability
 
@@ -255,13 +265,13 @@ Metrics: `mcp.tool.invocations`, `mcp.tool.errors`, `mcp.tool.duration`
 
 ## Architecture
 
-```
+```text
 +---------------------------------------------+
 |  GraphQL.MCP.Abstractions                   |  Contracts (zero deps)
 +---------------------------------------------+
 |  GraphQL.MCP.Core                           |  Engine (canonicalize, policy, publish, execute)
 +---------------------------------------------+
-|  GraphQL.MCP.AspNetCore                     |  HTTP transport (Streamable HTTP)
+|  GraphQL.MCP.AspNetCore                     |  HTTP transport (Streamable HTTP and stdio)
 +----------------------+----------------------+
 |  GraphQL.MCP.        |  GraphQL.MCP.        |
 |  HotChocolate        |  GraphQLDotNet       |  Framework adapters
@@ -271,6 +281,16 @@ Metrics: `mcp.tool.invocations`, `mcp.tool.errors`, `mcp.tool.duration`
 The core engine is fully framework-agnostic. Adding a new framework adapter means implementing two interfaces: `IGraphQLSchemaSource` and `IGraphQLExecutor`.
 
 See [docs/architecture.md](docs/architecture.md) for the full design.
+
+---
+
+## Release Readiness
+
+- The repository is prepared for stable `.NET` and `Java` release lines.
+- Existing `-alpha`, `-beta`, or `-rc` tags remain prereleases in GitHub Releases, but stable tags without a prerelease suffix become the normal latest release line.
+- Spring GraphQL is already published, and the DGS adapter is part of the stable-ready Java surface for the next stable Java tag.
+
+For the full stable release checklist, see [docs/releases.md](docs/releases.md).
 
 ---
 
@@ -300,6 +320,7 @@ Restart Claude Desktop. Your GraphQL operations will appear as tools.
 | Getting Started (.NET) | [docs/dotnet/getting-started.md](docs/dotnet/getting-started.md) |
 | Configuration (.NET) | [docs/dotnet/configuration.md](docs/dotnet/configuration.md) |
 | Getting Started (Java) | [docs/java/getting-started.md](docs/java/getting-started.md) |
+| Getting Started (DGS) | [docs/java/dgs-getting-started.md](docs/java/dgs-getting-started.md) |
 | Configuration (Java) | [docs/java/configuration.md](docs/java/configuration.md) |
 | Discovery | [docs/discovery.md](docs/discovery.md) |
 | Prompts | [docs/prompts.md](docs/prompts.md) |
@@ -307,6 +328,7 @@ Restart Claude Desktop. Your GraphQL operations will appear as tools.
 | Exploration Workflow | [docs/exploration.md](docs/exploration.md) |
 | Policies | [docs/policies.md](docs/policies.md) |
 | Adapters | [docs/adapters.md](docs/adapters.md) |
+| Releases | [docs/releases.md](docs/releases.md) |
 | Roadmap | [docs/roadmap.md](docs/roadmap.md) |
 | How Mapping Works | [docs/mapping.md](docs/mapping.md) |
 | Security Model | [docs/security.md](docs/security.md) |
@@ -336,7 +358,7 @@ Restart Claude Desktop. Your GraphQL operations will appear as tools.
 - [x] Shared policy packs for common schema families and industry domains
 - [x] OAuth 2.1 metadata support
 - [x] stdio transport
-- [ ] Netflix DGS adapter
+- [x] Netflix DGS adapter
 
 ---
 
@@ -346,4 +368,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and guidelines.
 
 ## License
 
-[MIT](LICENSE) — use it however you want.
+[MIT](LICENSE) - use it however you want.

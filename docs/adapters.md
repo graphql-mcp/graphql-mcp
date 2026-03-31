@@ -8,7 +8,7 @@ Each adapter is responsible for:
 
 - extracting a GraphQL schema into the canonical model
 - executing generated GraphQL operations
-- integrating with framework DI and HTTP hosting
+- integrating with framework DI and HTTP or stdio hosting
 
 The shared core is responsible for:
 
@@ -24,24 +24,28 @@ The shared core is responsible for:
 ### Hot Chocolate (.NET)
 
 - package: `GraphQL.MCP.HotChocolate`
-- role: supported adapter and reference implementation
+- role: stable-ready adapter and reference implementation
 
 ### graphql-dotnet (.NET)
 
 - package: `GraphQL.MCP.GraphQLDotNet`
-- role: primary cross-framework .NET adapter
+- role: stable-ready cross-framework .NET adapter
 
 ### Spring GraphQL (Java)
 
 - packages:
   - `dev.graphql-mcp:graphql-mcp-spring-boot-starter`
   - `dev.graphql-mcp:graphql-mcp-web`
-- role: alpha-preview Java adapter
+- role: stable-ready Java adapter
+
+### Netflix DGS (Java)
+
+- package: `dev.graphql-mcp:graphql-mcp-dgs`
+- role: stable-ready DGS adapter layered on the shared Spring GraphQL integration
 
 ## Planned Adapters
 
-- Netflix DGS
-- broader Java ecosystem expansion after Spring hardening
+- broader Java ecosystem expansion after the first stable Java cycle
 
 ## Non-Goals
 

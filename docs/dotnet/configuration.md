@@ -22,7 +22,7 @@ builder.Services.AddHotChocolateMcp(options =>
 
     // --- Safety ---
     options.AllowMutations = false;                  // Allow mutation tools (default: false)
-    options.ExcludedFields.Add("password");           // Exclude specific fields
+    options.ExcludedFields.Add("password");          // Exclude specific fields
     options.ExcludedFields.Add("ssn");
     options.ExcludedTypes.Add("AuditLog");           // Exclude operations involving these types
 
@@ -103,19 +103,19 @@ app.UseGraphQLMcp(
 
 ### VerbNoun (default)
 
-```
-Query field "users"      → "get_users"
-Query field "orderById"  → "get_orderById"
-Mutation "createUser"    → "createUser"
-With prefix "v1"         → "v1_get_users"
+```text
+Query field "users"      -> "get_users"
+Query field "orderById"  -> "get_orderById"
+Mutation "createUser"    -> "createUser"
+With prefix "v1"         -> "v1_get_users"
 ```
 
 ### Raw
 
-```
-Query field "users"      → "users"
-Mutation "createUser"    → "createUser"
-With prefix "v1"         → "v1_users"
+```text
+Query field "users"      -> "users"
+Mutation "createUser"    -> "createUser"
+With prefix "v1"         -> "v1_users"
 ```
 
 ### PrefixedRaw

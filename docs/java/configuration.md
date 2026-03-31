@@ -2,7 +2,7 @@
 
 ## Status
 
-The Java configuration surface is available as an alpha-preview release on Maven Central.
+The Java configuration surface is stable-ready in the repository. Use the latest published version from Maven Central until you cut the stable Java tag.
 
 ## application.yml
 
@@ -135,12 +135,12 @@ This lets teams reuse a common preset, define a small profile for domain-specifi
 
 ## What Is Not There Yet
 
-- Netflix DGS adapter
 - deeper semantic ranking beyond the current lightweight hint model
 
 ## Related Docs
 
 - [Getting Started](getting-started.md)
+- [Getting Started (DGS)](dgs-getting-started.md)
 - [Security](../security.md)
 - [Transports](../transports.md)
 - [Observability](../observability.md)

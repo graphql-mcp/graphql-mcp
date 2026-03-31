@@ -1,0 +1,10 @@
+type Query {
+  hello(name: String): String!
+  showById(id: ID!): Show
+  shows: [Show!]!
+}
+
+type Show {
+  id: ID!
+  title: String!
+}

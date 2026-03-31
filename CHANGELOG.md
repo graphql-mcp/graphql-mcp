@@ -31,12 +31,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - stronger domain inference that falls back through return types, wrapper members, field names, and descriptions
 - OAuth 2.1 metadata discovery across `initialize`, `resources/read graphql-mcp://auth/metadata`, and `/.well-known/oauth-authorization-server`
 - stdio transport for both .NET and Java using line-delimited JSON-RPC over stdin/stdout
+- Netflix DGS adapter package, enablement annotation, example app, and CI smoke build
 - dedicated docs for policies, adapters, and roadmap
+- dedicated stable-release guidance, version-neutral install snippets, and release criteria documentation
 ### Fixed
 - ISchema DI resolution crash - Hot Chocolate adapter now uses `IRequestExecutorResolver` instead of `ISchema` (not registered in HC DI container)
 - Integer argument deserialization - added `TryGetInt32` check before `TryGetInt64` in `ToolExecutor.DeserializeJsonElement`
 - C# ternary numeric widening - added explicit `(object)` casts to prevent implicit int/long/double coercion in switch expression
 - Java packaging - internal `graphql-mcp-tests` module is now skipped for Central publishing
+- GitHub publish workflows now create prereleases only for prerelease tags and reserve normal releases for stable versions
 
 ## [java-v0.1.0-alpha.3] - 2026-03-26
 

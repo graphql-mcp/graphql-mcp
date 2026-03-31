@@ -39,6 +39,9 @@ jobs:
       - name: Test
         run: dotnet test src/dotnet/GraphQL.MCP.sln --no-build -c Release --verbosity normal --collect:"XPlat Code Coverage"
 
+      - name: Pack
+        run: dotnet pack src/dotnet/GraphQL.MCP.sln --no-build -c Release -o ./nupkgs
+
       - name: Build examples
         run: |
           dotnet restore examples/dotnet-hotchocolate-minimal/
